@@ -9,7 +9,7 @@ Run the server in development mode:
 livekit-server --dev
 ```
 ### Step 3: Start AccessToken Server
-In the AccessTokenServer directory, launch the token server:
+In the `AccessTokenServer~` directory, launch the token server:
 ```bash
 docker compose up -d
 ```
