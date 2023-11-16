@@ -1,0 +1,10 @@
+services:
+  nodejs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nodejs
+    restart: unless-stopped
+    env_file: ${PWD}/.env
+    ports:
+      - '3000:3000'
