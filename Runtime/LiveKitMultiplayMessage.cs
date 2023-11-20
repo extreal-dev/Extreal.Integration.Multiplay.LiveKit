@@ -12,13 +12,13 @@ namespace Extreal.Integration.Multiplay.LiveKit
     };
 
     [Serializable]
-    public class LiveKitMultiplayMessage<T> where T : LiveKitPlayerInputValues, new()
+    public class LiveKitMultiplayMessage
     {
         public string Topic;
         public LiveKidMultiplayMessageCommand Command;
-        public NetworkObject<T> Payload;
+        public NetworkObject Payload;
 
-        public LiveKitMultiplayMessage(string topic, LiveKidMultiplayMessageCommand command, NetworkObject<T> payload = default)
+        public LiveKitMultiplayMessage(string topic, LiveKidMultiplayMessageCommand command, NetworkObject payload = default)
         {
             Topic = topic;
             Command = command;
