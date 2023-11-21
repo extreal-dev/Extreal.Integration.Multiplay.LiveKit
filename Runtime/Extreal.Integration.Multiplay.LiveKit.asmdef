@@ -2,9 +2,12 @@
     "name": "Extreal.Integration.Multiplay.LiveKit",
     "rootNamespace": "",
     "references": [
-        "Extreal.Framework.Analyzer",
+        "Extreal.SampleApp.Holiday.Analyzer",
+        "Extreal.Core.Logging",
+        "Extreal.Core.Common",
         "Unity.InputSystem",
         "UniTask",
+        "UniRx",
         "LiveKitBridge"
     ],
     "includePlatforms": [],

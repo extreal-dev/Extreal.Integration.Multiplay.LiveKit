@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 
 namespace Extreal.Integration.Multiplay.LiveKit
@@ -14,20 +15,19 @@ namespace Extreal.Integration.Multiplay.LiveKit
     [Serializable]
     public class LiveKitMultiplayMessage
     {
-        public string Topic;
-        public LiveKidMultiplayMessageCommand Command;
-        public NetworkObject Payload;
+        public LiveKidMultiplayMessageCommand LiveKidMultiplayMessageCommand => liveKidMultiplayMessageCommand;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private LiveKidMultiplayMessageCommand liveKidMultiplayMessageCommand;
 
-        public LiveKitMultiplayMessage(string topic, LiveKidMultiplayMessageCommand command, NetworkObject payload = default)
+        public NetworkObjectInfo Payload => payload;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo payload;
+
+        public LiveKitMultiplayMessage(LiveKidMultiplayMessageCommand liveKidMultiplayMessageCommand, NetworkObjectInfo payload = default)
         {
-            Topic = topic;
-            Command = command;
-            Payload = payload;
+            this.liveKidMultiplayMessageCommand = liveKidMultiplayMessageCommand;
+            this.payload = payload;
         }
 
         public string ToJson()
-        {
-            return JsonUtility.ToJson(this);
-        }
+            => JsonUtility.ToJson(this);
     }
 }
