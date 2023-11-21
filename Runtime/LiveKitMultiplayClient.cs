@@ -32,6 +32,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public async UniTask DisconnectAsync() { }
         public GameObject[] Spawn(List<GameObject> networkPrefabs) { return Array.Empty<GameObject>(); }
         public void SendMessage(string messageName, string messageJson, DataPacketKind dataPacketKind) { }
+        public async UniTask<Room[]> ListRooms() { return Array.Empty<Room>(); }
+        public void DeleteRoom() { }
 
         // private enum StatType
         // {
