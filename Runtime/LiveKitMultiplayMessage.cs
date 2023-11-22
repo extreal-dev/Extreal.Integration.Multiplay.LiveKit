@@ -9,7 +9,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
         None,
         Create,
         Update,
-        Delete,
     };
 
     [Serializable]

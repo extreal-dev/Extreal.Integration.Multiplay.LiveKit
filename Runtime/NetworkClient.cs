@@ -17,7 +17,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public void SetPlayerObject(GameObject playerObject)
             => PlayerObject = playerObject;
 
-        internal void AddNetworkObjects(List<GameObject> networkObjects)
-            => this.networkObjects.AddRange(networkObjects);
+        internal void AddNetworkObject(GameObject networkObject)
+            => networkObjects.Add(networkObject);
     }
 }

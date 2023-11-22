@@ -7,25 +7,19 @@ namespace Extreal.Integration.Multiplay.LiveKit
     [Serializable]
     public class NetworkObjectInfo : ISerializationCallbackReceiver
     {
-        public static NetworkObjectInfo Empty => new NetworkObjectInfo();
+        public static NetworkObjectInfo Empty => new NetworkObjectInfo(Guid.Empty, -1, Vector3.zero, Quaternion.identity);
 
         public Guid ObjectGuid { get; private set; }
         [SerializeField] private string objectId;
 
-        public int GameObjectHash => gameObjectHash;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private int gameObjectHash;
+        public int InstanceId => instanceId;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private int instanceId;
 
         public Vector3 Position => position;
         [SerializeField] private Vector3 position;
 
         public Quaternion Rotation => rotation;
         [SerializeField] private Quaternion rotation;
-
-        public string Message => message;
-        [SerializeField] private string message;
-
-        public string Name => name;
-        [SerializeField] private string name;
 
         public DateTime CreatedAt { get; private set; }
         [SerializeField] private long createdAt;
@@ -36,12 +30,15 @@ namespace Extreal.Integration.Multiplay.LiveKit
         private LiveKitPlayerInputValues values;
         [SerializeField] private string jsonOfValues;
 
-        public NetworkObjectInfo()
+        public NetworkObjectInfo(Guid guid, int instanceId, Vector3 position, Quaternion rotation)
         {
-            gameObjectHash = -1;
+            ObjectGuid = guid;
+            this.instanceId = instanceId;
+            this.position = position;
+            this.rotation = rotation;
 
-            CreatedAt = DateTime.Now;
-            UpdatedAt = DateTime.Now;
+            CreatedAt = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void OnBeforeSerialize()
@@ -51,7 +48,10 @@ namespace Extreal.Integration.Multiplay.LiveKit
             createdAt = CreatedAt.ToBinary();
             updatedAt = UpdatedAt.ToBinary();
 
-            jsonOfValues = JsonUtility.ToJson(values);
+            if (values != null)
+            {
+                jsonOfValues = JsonUtility.ToJson(values);
+            }
         }
 
         public void OnAfterDeserialize()
@@ -62,14 +62,28 @@ namespace Extreal.Integration.Multiplay.LiveKit
             UpdatedAt = DateTime.FromBinary(updatedAt);
         }
 
-        public void UpdateInput(in LiveKitPlayerInput input)
+        public void Updated()
+            => UpdatedAt = DateTime.UtcNow;
+
+        public void GetTransformFrom(Transform transform)
         {
+            position = transform.position;
+            rotation = transform.rotation;
+        }
+
+        public void ApplyValuesTo(in LiveKitPlayerInput input)
+        {
+            if (string.IsNullOrEmpty(jsonOfValues))
+            {
+                return;
+            }
+
             var typeOfValues = input.GetType();
             values = JsonUtility.FromJson(jsonOfValues, typeOfValues) as LiveKitPlayerInputValues;
             input.SetValues(values);
         }
 
-        public void UpdateBehaviour(in LiveKitPlayerInput input)
+        public void GetValuesFrom(in LiveKitPlayerInput input)
             => values = input.Values;
     }
 }

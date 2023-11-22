@@ -6,9 +6,11 @@ using System;
 using System.Collections.Generic;
 
 using UnityEngine.InputSystem;
-using static UnityEngine.UI.CanvasScaler;
 using LiveKit;
 using Extreal.Core.Logging;
+using UniRx;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 
 namespace Extreal.Integration.Multiplay.LiveKit
 {
@@ -19,26 +21,184 @@ namespace Extreal.Integration.Multiplay.LiveKit
         [SerializeField] private GameObject playerObject;
         [SerializeField] private GameObject[] networkObjects;
 
-        public List<NetworkClient> ConnectedClients;
-        public IObservable<Unit> OnConnected;
-        public IObservable<Unit> OnDisconnecting;
-        public IObservable<Unit> OnUnexpectedDisconnected;
-        public IObservable<RemoteParticipant> OnUserConnected;
-        public IObservable<RemoteParticipant> OnUserDisconnected;
-        public IObservable<Unit> OnConnectionApprovalRejected;
-        public IObservable<(Participant participant, GameObject playerObject)> OnPlayerSpawned;
-        public IObservable<(Participant participant, string messageJson)> OnMessageReceived;
+        public NetworkClient LocalClient { get; private set; }
 
-        private NetworkClient localClient;
-        private LiveKitPlayerInput input;
-        private NetworkObjectInfo localPlayerNetworkObjectInfo;
+        public IReadOnlyDictionary<Participant, NetworkClient> ConnectedClients => connectedClients;
+        private readonly Dictionary<Participant, NetworkClient> connectedClients = new Dictionary<Participant, NetworkClient>();
+
+        public IObservable<Unit> OnConnected => transport.OnConnected;
+        public IObservable<Unit> OnDisconnected => transport.OnDisconnected;
+        public IObservable<DisconnectReason> OnUnexpectedDisconnected => transport.OnUnexpectedDisconnected;
+        public IObservable<Unit> OnConnectionApprovalRejected => transport.OnConnectionApprovalRejected;
+        public IObservable<RemoteParticipant> OnUserConnected => transport.OnUserConnected;
+        public IObservable<RemoteParticipant> OnUserDisconnected => transport.OnUserDisconnected;
+        public IObservable<(Participant participant, GameObject networkObject)> OnObjectSpawned;
+        public IObservable<(Participant participant, LiveKidMultiplayMessageContainer message)> OnMessageReceived => transport.OnMessageReceived;
+
         private readonly Dictionary<Guid, NetworkObjectInfo> localNetworkObjectInfos = new Dictionary<Guid, NetworkObjectInfo>();
+        private readonly Dictionary<Guid, GameObject> networkGameObjects = new Dictionary<Guid, GameObject>();
 
-        private readonly Dictionary<int, GameObject> networkObjectPrefabsDict = new Dictionary<int, GameObject>();
+        private readonly Dictionary<int, GameObject> networkObjectPrefabs = new Dictionary<int, GameObject>();
 
-        private LiveKitMultiplayTransport transport;
+        [SuppressMessage("Usage", "CC0033")]
+        private readonly LiveKitMultiplayTransport transport = new LiveKitMultiplayTransport();
 
         private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(LiveKitMultiplayClient));
+
+        public void Awake()
+            => Initialize();
+
+        [SuppressMessage("Usage", "CC0022")]
+        private void Initialize()
+        {
+            if (Logger.IsDebug())
+            {
+                Logger.LogDebug(nameof(Initialize));
+            }
+
+            transport.AddTo(this);
+
+            transport.OnDisconnected
+                .Merge(transport.OnUnexpectedDisconnected.Select(_ => Unit.Default))
+                .TakeUntilDestroy(this)
+                .Subscribe(_ => Clear());
+
+            transport.OnUserConnected
+                .TakeUntilDestroy(this)
+                .Subscribe(participant => connectedClients[participant] = new NetworkClient(participant));
+
+            transport.OnUserDisconnected
+                .TakeUntilDestroy(this)
+                .Subscribe(participant =>
+                {
+                    var networkClient = connectedClients[participant];
+                    if (networkClient.PlayerObject != null)
+                    {
+                        Destroy(networkClient.PlayerObject);
+                    }
+                    foreach (var networkObject in networkClient.NetworkObjects)
+                    {
+                        Destroy(networkObject);
+                    }
+                    connectedClients.Remove(participant);
+                });
+
+            AddToNetworkObjectPrefabs(playerObject);
+            Array.ForEach(networkObjects, AddToNetworkObjectPrefabs);
+        }
+
+        private void AddToNetworkObjectPrefabs(GameObject go)
+        {
+            if (go == null)
+            {
+                return;
+            }
+            var instanceId = go.GetInstanceID();
+            networkObjectPrefabs.Add(instanceId, go);
+        }
+
+        private void Clear()
+        {
+            foreach (var networkGameObject in networkGameObjects.Values)
+            {
+                Destroy(networkGameObject);
+            }
+
+            LocalClient = null;
+            connectedClients.Clear();
+            localNetworkObjectInfos.Clear();
+            networkGameObjects.Clear();
+        }
+
+        private void Update()
+        {
+            if (!transport.IsConnected)
+            {
+                return;
+            }
+
+            foreach ((var guid, var networkObjectInfo) in localNetworkObjectInfos)
+            {
+                var localGameObject = networkGameObjects[guid];
+                networkObjectInfo.GetTransformFrom(localGameObject.transform);
+
+                if (localGameObject.TryGetComponent(out LiveKitPlayerInput input))
+                {
+                    networkObjectInfo.GetValuesFrom(in input);
+                }
+
+                networkObjectInfo.Updated();
+
+                var message = new LiveKitMultiplayMessage(LiveKidMultiplayMessageCommand.Update, networkObjectInfo);
+                transport.EnqueueRequest(message);
+            }
+
+            while (transport.ResponseQueueCount() > 0)
+            {
+                (var participant, var message) = transport.DequeueResponse();
+                if (message == null)
+                {
+                    continue;
+                }
+
+                var networkObjectInfo = message.Payload;
+                if (localNetworkObjectInfos.ContainsKey(networkObjectInfo.ObjectGuid))
+                {
+                    continue;
+                }
+
+                if (message.LiveKidMultiplayMessageCommand is LiveKidMultiplayMessageCommand.Create)
+                {
+                    CreateObject(participant, networkObjectInfo);
+                }
+                else if (message.LiveKidMultiplayMessageCommand is LiveKidMultiplayMessageCommand.Update)
+                {
+                    UpdateObject(networkObjectInfo);
+                }
+            }
+
+            transport.Update();
+        }
+
+        private void CreateObject(Participant participant, NetworkObjectInfo networkObjectInfo)
+        {
+            var guid = networkObjectInfo.ObjectGuid;
+            var instanceId = networkObjectInfo.InstanceId;
+            if (Logger.IsDebug())
+            {
+                Logger.LogDebug(
+                    "Create network object:"
+                    + $" participant={participant.Name}, CreatedAt={networkObjectInfo.CreatedAt}, ObjectGuid={guid}, instanceId={instanceId}");
+            }
+
+            var prefab = networkObjectPrefabs[instanceId];
+            var spawnedObject = Instantiate(prefab, networkObjectInfo.Position, networkObjectInfo.Rotation);
+            networkGameObjects.Add(guid, spawnedObject);
+
+            var setToLocalClient = (Action<GameObject>)(
+                instanceId == playerObject.GetInstanceID()
+                    ? connectedClients[participant].SetPlayerObject
+                    : connectedClients[participant].AddNetworkObject
+            );
+            setToLocalClient(spawnedObject);
+        }
+
+        private void UpdateObject(NetworkObjectInfo obj)
+        {
+            if (networkGameObjects.TryGetValue(obj.ObjectGuid, out var objectToBeUpdated))
+            {
+                if (objectToBeUpdated.TryGetComponent(out LiveKitPlayerInput input))
+                {
+                    obj.ApplyValuesTo(in input);
+                }
+
+                if ((objectToBeUpdated.transform.position - obj.Position).sqrMagnitude > 0f)
+                {
+                    objectToBeUpdated.transform.position = obj.Position;
+                    objectToBeUpdated.transform.rotation = obj.Rotation;
+                }
+            }
+        }
 
         public async UniTask ConnectAsync(string token, string url = default)
         {
@@ -61,328 +221,65 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 Logger.LogDebug($"Connect: url={url}, token={token}");
             }
 
-            transport = new LiveKitMultiplayTransport();
-            await transport.ConnectAsync(url, token);
+            var participant = await transport.ConnectAsync(url, token);
+            LocalClient = new NetworkClient(participant);
+            connectedClients[participant] = LocalClient;
         }
 
-        public async UniTask DisconnectAsync() { }
-
-        public GameObject[] Spawn(List<GameObject> networkPrefabs)
+        public void Disconnect()
         {
-            // localPlayerNetworkObjectInfo = new NetworkObjectInfo();
-            // localPlayerNetworkObjectInfo.ObjectGuid = Guid.NewGuid();
-            // localPlayerNetworkObjectInfo.GameObjectHash = Utility.GetGameObjectHash(playerPrefab);
-            // localPlayerNetworkObjectInfo.Name = PlayerName;
+            if (Logger.IsDebug())
+            {
+                Logger.LogDebug(nameof(Disconnect));
+            }
 
-            // var localPlayer = Instantiate(
-            //     playerObject,
-            //     localPlayerNetworkObjectInfo.Position,
-            //     localPlayerNetworkObjectInfo.Rotation
-            // );
-            // localClient.SetPlayerObject(localPlayer);
-
-            // localPlayer.TryGetComponent(out input);
-
-            // localNetworkObjectInfos.Add(localPlayerNetworkObjectInfo.ObjectGuid, localPlayerNetworkObjectInfo);
-            return Array.Empty<GameObject>();
+            transport.Disconnect();
         }
 
-        public void SendMessage(string messageName, string messageJson, DataPacketKind dataPacketKind) { }
+        public void DeleteRoom()
+            => transport.DeleteRoom();
+
+        public GameObject SpawnPlayer(Vector3 position = default, Quaternion rotation = default, Transform parent = default)
+        {
+            if (playerObject == null)
+            {
+                throw new InvalidOperationException("Add an object to use as player to the playerObject of this instance");
+            }
+
+            return SpawnInternal(playerObject, position, rotation, parent, true);
+        }
+
+        public GameObject SpawnObject(GameObject objectPrefab, Vector3 position = default, Quaternion rotation = default, Transform parent = default)
+        {
+            if (!networkObjectPrefabs.ContainsKey(objectPrefab.GetInstanceID()))
+            {
+                throw new ArgumentOutOfRangeException(nameof(objectPrefab), "Specify any of the objects you have added to the networkObjects of this instance");
+            }
+
+            return SpawnInternal(objectPrefab, position, rotation, parent, false);
+        }
+
+        public GameObject SpawnInternal(GameObject prefab, Vector3 position, Quaternion rotation, Transform parent, bool isPlayer)
+        {
+            var networkObjectInfo = new NetworkObjectInfo(Guid.NewGuid(), prefab.GetInstanceID(), position, rotation);
+            var localObject = Instantiate(prefab, networkObjectInfo.Position, networkObjectInfo.Rotation, parent);
+
+            var setToLocalClient = (Action<GameObject>)(isPlayer ? LocalClient.SetPlayerObject : LocalClient.AddNetworkObject);
+            setToLocalClient(localObject);
+
+            localNetworkObjectInfos.Add(networkObjectInfo.ObjectGuid, networkObjectInfo);
+            networkGameObjects.Add(networkObjectInfo.ObjectGuid, localObject);
+
+            return localObject;
+        }
+
+        public void SendMessage(string messageName, string messageJson, DataPacketKind dataPacketKind = DataPacketKind.RELIABLE)
+        {
+            var message = JsonUtility.ToJson(new LiveKidMultiplayMessageContainer(messageName, messageJson));
+            transport.SendMessageAsync(message, dataPacketKind).Forget();
+        }
+
         public async UniTask<Room[]> ListRooms() { return Array.Empty<Room>(); }
-        public void DeleteRoom() { }
-
-        private enum StatType
-        {
-            TXTotal,
-            RXTotal,
-            TXNum,
-            RXNum,
-        }
-
-        public enum ControlType
-        {
-            None,
-            FirstPerson,
-            ThirdPerson,
-        }
-
-        private ulong txTotal = 0;
-        private ulong rxTotal = 0;
-        private ulong txNum = 0;
-        private ulong rxNum = 0;
-
-        private Queue<string> messageQueue = new Queue<string>();
-
-        public void EnqueueMessage(string message)
-        {
-            messageQueue.Enqueue(message);
-        }
-
-        public void StartClient(string endpoint, string roomName)
-        {
-
-        }
-
-        //         public async UniTask StopClient()
-        //         {
-        //             Utility.DebugLogger(this, "StopClient()");
-        //             if (transport != null)
-        //             {
-        //                 // Destroy(mainPlayer);
-        //                 Utility.DebugLogger(
-        //                     this,
-        //                     $"Delete mainPlayer.ObjectGuid: {localPlayerNetworkObjectInfo.ObjectGuid.ToString()}"
-        //                 );
-        //                 await transport.Close();
-        //                 transport = null;
-
-        //                 foreach (KeyValuePair<Guid, GameObject> pair in localGameObjectDict)
-        //                 {
-        //                     // Guid guid = pair.Key;
-        //                     GameObject gameObj = pair.Value;
-        //                     gameObj.Destroy();
-        //                 }
-
-        //                 localGameObjectDict.Clear();
-        //                 localNetworkObjectInfos.Clear();
-        //             }
-        //             else
-        //             {
-        //                 Utility.DebugLogger(this, "pubsubClient is already disconnected.");
-        //             }
-        //             localPlayerNetworkObjectInfo = null;
-        //         }
-
-        //         private void Initialize()
-        //         {
-        //             Utility.DebugLogger(this, $"Initialize()");
-        //             foreach (GameObject p in networkObjectPrefabs)
-        //             {
-        //                 int hash = Utility.GetGameObjectHash(p);
-        //                 Debug.Log($"prefab for networkObject: {p.ToString()}, hash: {hash}");
-        //                 networkObjectPrefabsDict.Add(hash, p);
-        //             }
-        //         }
-
-        //         public void Start()
-        //         {
-        //             // ネットワークオブジェクトのハッシュを取得して辞書に格納する
-        //             Initialize();
-        //         }
-
-        //         // public async UniTask Update(){
-        //         public async UniTask Update()
-        //         {
-        //             if (transport == null)
-        //                 return;
-
-        //             // ネットワークオブジェクトの処理
-        //             // リクエストキューにメッセージを追加して参加者に送信
-        //             foreach (KeyValuePair<Guid, NetworkObjectInfo> pair in localNetworkObjectInfos)
-        //             {
-        //                 Guid guid = pair.Key;
-        //                 NetworkObjectInfo networkObj = pair.Value;
-
-        //                 // ローカルのゲームオブジェクトの情報をネットワークのオブジェクトに反映する
-        //                 GameObject n = localGameObjectDict[guid];
-        //                 networkObj.Position = n.transform.position;
-        //                 networkObj.Rotation = n.transform.rotation;
-
-        //                 // ToDo: 遅いので速くする方法を考えたほうが良い
-        //                 // StarterAssetsInputs controlInput = n.GetComponent<StarterAssetsInputs>();
-        //                 CometInputs controlInput = n.GetComponent<CometInputs>();
-        //                 networkObj.UpdateBehaviour(in controlInput);
-
-        //                 // ToDo: オブジェクト生成時刻の設定
-        //                 networkObj.DateTime_UpdatedAt = DateTime.Now;
-        //                 // 状態の時刻の設定
-        //                 networkObj.DateTime_UpdatedAt = DateTime.Now;
-
-        //                 // もしもメッセージがあれば含める
-        //                 networkObj.Message = string.Empty;
-        //                 if (messageQueue.Count > 0)
-        //                 {
-        //                     networkObj.Message = messageQueue.Dequeue();
-        //                     // TextMessageSpawn(n, networkObj.Message);
-        //                     TextMessageSpawn(n, guid.GetHashCode(), networkObj.Name, networkObj.Message);
-        //                 }
-
-        //                 Message msg = new Message(roomName, networkObj);
-        //                 msg.Command = MessageCommand.Update;
-        //                 msg.Payload = networkObj;
-
-        //                 txTotal += (ulong)msg.ToJson().Length;
-        //                 txNum++;
-
-        //                 transport.RequestQueue.Enqueue(msg);
-        //             }
-
-        //             // レスポンスキューを処理
-        //             // 受け取ったリクエストキューを処理する
-        //             while (transport.ResponseQueueCount() > 0)
-        //             {
-        //                 // Message msg = pubsubClient.ResponseQueue.Dequeue();
-        //                 Message msg = transport.DequeueResponse();
-        //                 if (msg == null)
-        //                     continue;
-
-        //                 rxTotal += (ulong)msg.ToJson().Length;
-        //                 rxNum++;
-        //                 NetworkObjectInfo networkObj = msg.Payload;
-        //                 // 自分のキャラクターの場合は無視
-        //                 if (networkObj.ObjectGuid.ToString() == localPlayerNetworkObjectInfo.ObjectGuid.ToString())
-        //                 {
-        //                     continue;
-        //                 }
-
-        //                 switch (msg.Command)
-        //                 {
-        //                     case MessageCommand.Create:
-        //                         MessageCreateObject(networkObj);
-        //                         break;
-        //                     case MessageCommand.Update:
-        //                         MessageUpdateObject(networkObj);
-        //                         break;
-        //                     case MessageCommand.Delete:
-        //                         MessageDeleteObject(networkObj);
-        //                         break;
-        //                     default:
-        //                         break;
-        //                 }
-        // #if DEVELOPMENT_BUILD
-        //                 Utility.DebugLogger(this, $"ResponseQueue: {msg.ToJson()}");
-        // #endif
-        //             }
-        //             // リクエストキューの処理
-        //             // await pubsubClient.Update();
-        //             transport.Update();
-        //         }
-
-        //         private void MessageCreateObject(NetworkObjectInfo obj)
-        //         {
-        //             // ネットワークオブジェクトの生成
-        //             string guid = obj.ObjectGuid.ToString();
-        //             int hash = obj.GameObjectHash;
-        //             Utility.DebugLogger(
-        //                 this,
-        //                 $"Time: {obj.DateTime_CreatedAt}: Create NetworkObject[{guid}], PrefabHash: {hash}"
-        //             );
-        //             // プレハブの取得
-        //             GameObject prefab = networkObjectPrefabsDict[hash];
-        //             // オブジェクトの生成
-        //             if (soundSpawn != null)
-        //                 AudioSource.PlayClipAtPoint(soundSpawn, obj.Position, AudioVolume);
-        //             GameObject newObj = Instantiate(prefab, obj.Position, obj.Rotation);
-        //             bool nameOp = newObj.TryGetComponent<PlayerNameOperation>(
-        //                 out PlayerNameOperation _playerNameOperation
-        //             );
-        //             if (nameOp)
-        //                 _playerNameOperation.SetName(obj.Name);
-        //             else
-        //                 Utility.DebugLogger(this, $"PlayerNameOperation is not found.");
-
-        //             // もしPlayerInputがある場合は無効にする
-        //             if (newObj.TryGetComponent<PlayerInput>(out PlayerInput playerInput))
-        //                 playerInput.enabled = false;
-
-        //             // 辞書に登録
-        //             localGameObjectDict.Add(obj.ObjectGuid, newObj);
-        //             return;
-        //         }
-
-        //         private void MessageDeleteObject(NetworkObjectInfo obj)
-        //         {
-        //             // ネットワークオブジェクトの削除
-        //             string guid = obj.ObjectGuid.ToString();
-        //             Utility.DebugLogger(
-        //                 this,
-        //                 $"Time: {obj.DateTime_UpdatedAt}, Delete NetworkObject[{guid}]"
-        //             );
-        //             if (localGameObjectDict.ContainsKey(obj.ObjectGuid))
-        //             {
-        //                 GameObject delObj = localGameObjectDict[obj.ObjectGuid];
-        //                 if (soundDespawn != null)
-        //                     AudioSource.PlayClipAtPoint(
-        //                         soundDespawn,
-        //                         delObj.transform.position,
-        //                         AudioVolume
-        //                     );
-        //                 // 辞書から削除
-        //                 localGameObjectDict.Remove(obj.ObjectGuid);
-        //                 // オブジェクトの削除
-        //                 delObj.Destroy();
-        //             }
-        //             else
-        //             {
-        //                 Utility.DebugLogger(this, $"Delete NetworkObject not found[{obj.ObjectGuid}]");
-        //             }
-        //             return;
-        //         }
-
-        //         private void MessageUpdateObject(NetworkObjectInfo obj)
-        //         {
-        //             // ネットワークオブジェクトの更新
-        //             string guid = obj.ObjectGuid.ToString();
-        //             // Utility.DebugLogger(this, $"Update NetworkObject[{guid}]");
-        //             if (localGameObjectDict.ContainsKey(obj.ObjectGuid))
-        //             {
-        //                 GameObject updateObj = localGameObjectDict[obj.ObjectGuid];
-        //                 string dmsg0 = $"Time:{obj.DateTime_UpdatedAt}, Update NetworkObject[{guid}]";
-        //                 string dmsg1 =
-        //                     $"Prev: Pos({updateObj.transform.position}), Rot({updateObj.transform.rotation})";
-        //                 string dmsg2 = $"Curr: Pos({obj.Position}), Rot({obj.Rotation})";
-        //                 string diff_pos = (updateObj.transform.position - obj.Position).ToString();
-        //                 string diff_rot = (
-        //                     updateObj.transform.rotation * Quaternion.Inverse(obj.Rotation)
-        //                 ).ToString();
-        //                 // Utility.DebugLogger(this, $"{dmsg0}, {diff_pos}, {diff_rot}, {dmsg1}, {dmsg2}");
-
-        //                 // 遅いのでどうにかすると良い
-        //                 // StarterAssetsInputs controlInput = updateObj.GetComponent<StarterAssetsInputs>();
-        //                 CometInputs controlInput = updateObj.GetComponent<CometInputs>();
-        //                 // controlInputにobjの状態を反映
-        //                 obj.UpdateInput(in controlInput);
-
-        //                 // もし位置が大きくズレていたら補正
-        //                 // 位置と回転の更新
-        //                 if (Vector3.Distance(updateObj.transform.position, obj.Position) > 0.0f)
-        //                 {
-        //                     // Botの場合は位置補正をしない
-        //                     if (obj.Position == Vector3.zero)
-        //                     { }
-        //                     else
-        //                     {
-        //                         mainContext.Post(
-        //                             _ =>
-        //                             {
-        //                                 // メインスレッドでないとtransformは更新できない
-        //                                 updateObj.transform.position = obj.Position;
-        //                                 updateObj.transform.rotation = obj.Rotation;
-        //                             },
-        //                             null
-        //                         );
-        //                         // Utility.DebugLogger(this, $"Update NetworkObject[{guid}], Position corrected");
-        //                     }
-        //                 }
-
-        //                 // メッセージの処理
-        //                 TextMessageSpawn(updateObj, obj.ObjectGuid.GetHashCode(), obj.Name, obj.Message);
-        //             }
-        //             else
-        //                 Utility.DebugLogger(
-        //                     this,
-        //                     $"Error Update: NetworkObject not found[{obj.ObjectGuid}]"
-        //                 );
-
-        //             return;
-        //         }
-
-        // #if UNITY_EDITOR
-        //         public async void OnApplicationQuit()
-        //         {
-        //             await StopClient();
-        //         }
-        // #endif
     }
 
 #if !UNITY_WEBGL || UNITY_EDITOR
