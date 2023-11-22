@@ -377,12 +377,12 @@ namespace Extreal.Integration.Multiplay.LiveKit
         //             return;
         //         }
 
-#if UNITY_EDITOR
-        public async void OnApplicationQuit()
-        {
-            await StopClient();
-        }
-#endif
+        // #if UNITY_EDITOR
+        //         public async void OnApplicationQuit()
+        //         {
+        //             await StopClient();
+        //         }
+        // #endif
     }
 
 #if !UNITY_WEBGL || UNITY_EDITOR
