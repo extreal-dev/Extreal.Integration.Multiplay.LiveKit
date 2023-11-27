@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using LiveKit;
 using UnityEngine;
 
 namespace Extreal.Integration.Multiplay.LiveKit
@@ -9,6 +10,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
         None,
         Create,
         Update,
+        UserConnected,
+        Message,
     };
 
     [Serializable]
@@ -17,8 +20,11 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public LiveKidMultiplayMessageCommand LiveKidMultiplayMessageCommand => liveKidMultiplayMessageCommand;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private LiveKidMultiplayMessageCommand liveKidMultiplayMessageCommand;
 
-        public NetworkObjectInfo Payload => payload;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo payload;
+        public DataPacketKind DataPacketKind { get; }
+        public RemoteParticipant ToParticipant { get; }
+
+        public NetworkObjectInfo NetworkObjectInfo => networkObjectInfo;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo networkObjectInfo;
 
         public NetworkObjectInfo[] NetworkObjectInfos => networkObjectInfos;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo[] networkObjectInfos;
@@ -29,14 +35,19 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public LiveKitMultiplayMessage
         (
             LiveKidMultiplayMessageCommand liveKidMultiplayMessageCommand,
-            NetworkObjectInfo payload = default,
+            DataPacketKind dataPacketKind = DataPacketKind.RELIABLE,
+            RemoteParticipant toParticipant = default,
+            NetworkObjectInfo networkObjectInfo = default,
             NetworkObjectInfo[] networkObjectInfos = default,
             string message = default
         )
         {
             this.liveKidMultiplayMessageCommand = liveKidMultiplayMessageCommand;
-            this.payload = payload;
+            DataPacketKind = dataPacketKind;
+            ToParticipant = toParticipant;
+            this.networkObjectInfo = networkObjectInfo;
             this.networkObjectInfos = networkObjectInfos;
+            this.message = message;
         }
 
         public string ToJson()

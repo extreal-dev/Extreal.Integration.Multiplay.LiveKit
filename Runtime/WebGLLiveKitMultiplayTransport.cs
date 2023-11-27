@@ -92,13 +92,19 @@ namespace Extreal.Integration.Multiplay.LiveKit
         {
             while (requestQueue.Count > 0)
             {
-                var msg = requestQueue.Dequeue();
-                var jsonMsg = msg.ToJson();
+                var message = requestQueue.Dequeue();
+                var jsonMsg = message.ToJson();
                 if (!room.IsClosed)
                 {
-                    SendMessageAsync(jsonMsg).Forget();
+                    SendMessageAsync(jsonMsg, message.ToParticipant, message.DataPacketKind).Forget();
                 }
             }
+        }
+
+        private async UniTask SendMessageAsync(string message, RemoteParticipant participant, DataPacketKind dataPacketKind)
+        {
+            var data = Encoding.ASCII.GetBytes(message);
+            await room.LocalParticipant.PublishData(data, dataPacketKind, participant);
         }
 
         public void Initialize(TransportConfig transportConfig)
@@ -151,6 +157,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             IsConnected = false;
             onDisconnecting.OnNext(Unit.Default);
 
+            roomName = string.Empty;
             requestQueue.Clear();
             responseQueue.Clear();
             room.Disconnect();
@@ -160,12 +167,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
         {
             using var uwr = UnityWebRequest.Get($"{apiServerUrl}/deleteRoom?RoomName={roomName}");
             await uwr.SendWebRequest();
-        }
 
-        public async UniTask SendMessageAsync(string message, DataPacketKind dataPacketKind = DataPacketKind.RELIABLE)
-        {
-            var data = Encoding.ASCII.GetBytes(message);
-            await room.LocalParticipant.PublishData(data, dataPacketKind);
+            roomName = string.Empty;
         }
 
         private void DisconnectedEventHandler(DisconnectReason? reason)
@@ -184,9 +187,9 @@ namespace Extreal.Integration.Multiplay.LiveKit
         {
             var dataStr = Encoding.ASCII.GetString(data);
             var message = JsonUtility.FromJson<LiveKitMultiplayMessage>(dataStr);
-            if (message.LiveKidMultiplayMessageCommand is LiveKidMultiplayMessageCommand.None)
+            if (message.LiveKidMultiplayMessageCommand is LiveKidMultiplayMessageCommand.Message)
             {
-                onMessageReceived.OnNext((participant, dataStr));
+                onMessageReceived.OnNext((participant, message.Message));
             }
             else
             {

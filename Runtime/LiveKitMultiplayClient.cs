@@ -64,6 +64,10 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 .Subscribe(participant =>
                 {
                     connectedClients[participant] = new NetworkClient(participant);
+
+                    var networkObjectInfos = localNetworkObjectInfos.Values.ToArray();
+                    var message = new LiveKitMultiplayMessage(LiveKidMultiplayMessageCommand.UserConnected, toParticipant: participant, networkObjectInfos: networkObjectInfos);
+                    transport.EnqueueRequest(message);
                 });
 
             transport.OnUserDisconnected
@@ -127,8 +131,10 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 }
 
                 networkObjectInfo.Updated();
-
-                var message = new LiveKitMultiplayMessage(LiveKidMultiplayMessageCommand.Update, networkObjectInfo);
+            }
+            if (localNetworkObjectInfos.Count > 0)
+            {
+                var message = new LiveKitMultiplayMessage(LiveKidMultiplayMessageCommand.Update, networkObjectInfos: localNetworkObjectInfos.Values.ToArray());
                 transport.EnqueueRequest(message);
             }
 
@@ -140,19 +146,29 @@ namespace Extreal.Integration.Multiplay.LiveKit
                     continue;
                 }
 
-                var networkObjectInfo = message.Payload;
-                if (localNetworkObjectInfos.ContainsKey(networkObjectInfo.ObjectGuid))
+                if (localNetworkObjectInfos.ContainsKey(message.NetworkObjectInfo.ObjectGuid))
                 {
                     continue;
                 }
 
                 if (message.LiveKidMultiplayMessageCommand is LiveKidMultiplayMessageCommand.Create)
                 {
-                    CreateObject(participant, networkObjectInfo);
+                    CreateObject(participant, message.NetworkObjectInfo);
                 }
                 else if (message.LiveKidMultiplayMessageCommand is LiveKidMultiplayMessageCommand.Update)
                 {
-                    UpdateObject(networkObjectInfo);
+                    foreach (var networkObjectInfo in message.NetworkObjectInfos)
+                    {
+                        UpdateObject(networkObjectInfo);
+                    }
+                }
+                else if (message.LiveKidMultiplayMessageCommand is LiveKidMultiplayMessageCommand.UserConnected)
+                {
+                    connectedClients[participant] = new NetworkClient(participant);
+                    foreach (var networkObjectInfo in message.NetworkObjectInfos)
+                    {
+                        CreateObject(participant, networkObjectInfo);
+                    }
                 }
             }
 
@@ -271,7 +287,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             if (participant == LocalClient.Participant)
             {
                 localNetworkObjectInfos.Add(networkObjectInfo.ObjectGuid, networkObjectInfo);
-                var message = new LiveKitMultiplayMessage(LiveKidMultiplayMessageCommand.Create, networkObjectInfo);
+                var message = new LiveKitMultiplayMessage(LiveKidMultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo);
                 transport.EnqueueRequest(message);
             }
 
@@ -281,7 +297,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         }
 
         public void SendMessage(string message, DataPacketKind dataPacketKind = DataPacketKind.RELIABLE)
-            => transport.SendMessageAsync(message, dataPacketKind).Forget();
+            => transport.EnqueueRequest(new LiveKitMultiplayMessage(LiveKidMultiplayMessageCommand.Message, dataPacketKind, message: message));
 
         public UniTask<string[]> ListRoomsAsync()
             => transport.ListRoomsAsync();
