@@ -16,12 +16,13 @@ namespace Extreal.Integration.Multiplay.LiveKit
     public class NativeLiveKitMultiplayTransport : DisposableBase
     {
         public bool IsConnected { get; private set; }
+        public List<RemoteParticipant> ConnectedParticipants => throw new NotImplementedException();
 
         public IObservable<Unit> OnConnected => onConnected;
         private readonly Subject<Unit> onConnected;
 
-        public IObservable<Unit> OnDisconnected => onDisconnected;
-        private readonly Subject<Unit> onDisconnected;
+        public IObservable<Unit> OnDisconnecting => onDisconnecting;
+        private readonly Subject<Unit> onDisconnecting;
 
         public IObservable<DisconnectReason> OnUnexpectedDisconnected => onUnexpectedDisconnected;
         private readonly Subject<DisconnectReason> onUnexpectedDisconnected;
@@ -58,7 +59,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public NativeLiveKitMultiplayTransport()
         {
             onConnected = new Subject<Unit>().AddTo(disposables);
-            onDisconnected = new Subject<Unit>().AddTo(disposables);
+            onDisconnecting = new Subject<Unit>().AddTo(disposables);
             onUnexpectedDisconnected = new Subject<DisconnectReason>().AddTo(disposables);
             onUserConnected = new Subject<RemoteParticipant>().AddTo(disposables);
             onUserDisconnected = new Subject<RemoteParticipant>().AddTo(disposables);
@@ -70,10 +71,11 @@ namespace Extreal.Integration.Multiplay.LiveKit
             => disposables.Dispose();
 
         public void Update() => throw new NotImplementedException();
-        public async UniTask<Participant> ConnectAsync(string url, string token) => throw new NotImplementedException();
+        public void Initialize(TransportConfig transportConfig) => throw new NotImplementedException();
+        public async UniTask<Participant> ConnectAsync(ConnectionConfig connectionConfig) => throw new NotImplementedException();
         public void Disconnect() => throw new NotImplementedException();
-        public void DeleteRoom() => throw new NotImplementedException();
+        public async UniTask DeleteRoomAsync() => throw new NotImplementedException();
         public async UniTask SendMessageAsync(string message, DataPacketKind dataPacketKind = DataPacketKind.RELIABLE) => throw new NotImplementedException();
-        public async UniTask<Room[]> ListRoomsAsync() => throw new NotImplementedException();
+        public async UniTask<string[]> ListRoomsAsync() => throw new NotImplementedException();
     }
 }

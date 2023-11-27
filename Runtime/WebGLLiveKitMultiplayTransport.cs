@@ -9,18 +9,21 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using UnityEngine;
 using UniRx;
+using UnityEngine.Networking;
+using System.Linq;
 
 namespace Extreal.Integration.Multiplay.LiveKit
 {
     public class WebGLLiveKitMultiplayTransport : DisposableBase
     {
         public bool IsConnected { get; private set; }
+        public List<RemoteParticipant> ConnectedParticipants => room.Participants.Values.ToList();
 
         public IObservable<Unit> OnConnected => onConnected;
         private readonly Subject<Unit> onConnected;
 
-        public IObservable<Unit> OnDisconnected => onDisconnected;
-        private readonly Subject<Unit> onDisconnected;
+        public IObservable<Unit> OnDisconnecting => onDisconnecting;
+        private readonly Subject<Unit> onDisconnecting;
 
         public IObservable<DisconnectReason> OnUnexpectedDisconnected => onUnexpectedDisconnected;
         private readonly Subject<DisconnectReason> onUnexpectedDisconnected;
@@ -37,10 +40,13 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public IObservable<(Participant, string)> OnMessageReceived => onMessageReceived;
         private readonly Subject<(Participant, string)> onMessageReceived;
 
+        private readonly Room room;
+        private string apiServerUrl;
+        private string roomName;
+
         private readonly Queue<LiveKitMultiplayMessage> requestQueue = new Queue<LiveKitMultiplayMessage>();
         private readonly Queue<(Participant, LiveKitMultiplayMessage)> responseQueue = new Queue<(Participant, LiveKitMultiplayMessage)>();
 
-        private readonly Room room;
         private readonly CompositeDisposable disposables = new CompositeDisposable();
 
         private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(WebGLLiveKitMultiplayTransport));
@@ -58,7 +64,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public WebGLLiveKitMultiplayTransport()
         {
             onConnected = new Subject<Unit>().AddTo(disposables);
-            onDisconnected = new Subject<Unit>().AddTo(disposables);
+            onDisconnecting = new Subject<Unit>().AddTo(disposables);
             onUnexpectedDisconnected = new Subject<DisconnectReason>().AddTo(disposables);
             onUserConnected = new Subject<RemoteParticipant>().AddTo(disposables);
             onUserDisconnected = new Subject<RemoteParticipant>().AddTo(disposables);
@@ -66,7 +72,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
             onMessageReceived = new Subject<(Participant, string)>().AddTo(disposables);
 
             room = new Room().AddTo(disposables);
-            room.StateChanged += StateChangedEventHandler;
             room.Disconnected += DisconnectedEventHandler;
             room.ParticipantConnected += ParticipantConnectedEventHandler;
             room.ParticipantDisconnected += ParticipantDisconnectedEventHandler;
@@ -75,7 +80,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
         protected override void ReleaseManagedResources()
         {
-            room.StateChanged -= StateChangedEventHandler;
             room.Disconnected -= DisconnectedEventHandler;
             room.ParticipantConnected -= ParticipantConnectedEventHandler;
             room.ParticipantDisconnected -= ParticipantDisconnectedEventHandler;
@@ -97,18 +101,42 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
         }
 
-        public async UniTask InitializeAsync()
+        public void Initialize(TransportConfig transportConfig)
         {
+            if (transportConfig is not LiveKitTransportConfig liveKitTransportConfig)
+            {
+                throw new ArgumentException("Expect LiveKitTransportConfig", nameof(transportConfig));
+            }
 
+            apiServerUrl = liveKitTransportConfig.ApiServerUrl;
         }
 
-        public async UniTask<LocalParticipant> ConnectAsync(string url, string token)
+        public async UniTask<string[]> ListRoomsAsync()
         {
+            using var uwr = UnityWebRequest.Get($"{apiServerUrl}/listRooms");
+            await uwr.SendWebRequest();
+
+            var roomList = JsonUtility.FromJson<RoomList>(uwr.downloadHandler.text);
+            return roomList.Rooms;
+        }
+
+        public async UniTask<LocalParticipant> ConnectAsync(ConnectionConfig connectionConfig)
+        {
+            if (connectionConfig is not LiveKitConnectionConfig liveKitConnectionConfig)
+            {
+                throw new ArgumentException("Expect LiveKitConnectionConfig", nameof(connectionConfig));
+            }
+
             if (Logger.IsDebug())
             {
-                Logger.LogDebug($"Connect: url={url}, token={token}");
+                Logger.LogDebug($"Connect: url={liveKitConnectionConfig.Url}, token={liveKitConnectionConfig.AccessToken}");
             }
-            await room.Connect(url, token);
+
+            await room.Connect(liveKitConnectionConfig.Url, liveKitConnectionConfig.AccessToken);
+            roomName = liveKitConnectionConfig.RoomName;
+
+            IsConnected = true;
+            onConnected.OnNext(Unit.Default);
 
             return room.LocalParticipant;
         }
@@ -120,35 +148,24 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 Logger.LogDebug(nameof(Disconnect));
             }
 
+            IsConnected = false;
+            onDisconnecting.OnNext(Unit.Default);
+
             requestQueue.Clear();
             responseQueue.Clear();
             room.Disconnect();
         }
 
-        public void DeleteRoom()
+        public async UniTask DeleteRoomAsync()
         {
+            using var uwr = UnityWebRequest.Get($"{apiServerUrl}/deleteRoom?RoomName={roomName}");
+            await uwr.SendWebRequest();
         }
 
         public async UniTask SendMessageAsync(string message, DataPacketKind dataPacketKind = DataPacketKind.RELIABLE)
         {
             var data = Encoding.ASCII.GetBytes(message);
             await room.LocalParticipant.PublishData(data, dataPacketKind);
-        }
-
-        public async UniTask<Room[]> ListRoomsAsync() { return Array.Empty<Room>(); }
-
-        private void StateChangedEventHandler(ConnectionState state)
-        {
-            if (state is ConnectionState.Connected)
-            {
-                IsConnected = true;
-                onConnected.OnNext(Unit.Default);
-            }
-            if (state is ConnectionState.Disconnected)
-            {
-                IsConnected = false;
-                onDisconnected.OnNext(Unit.Default);
-            }
         }
 
         private void DisconnectedEventHandler(DisconnectReason? reason)
@@ -175,6 +192,16 @@ namespace Extreal.Integration.Multiplay.LiveKit
             {
                 responseQueue.Enqueue((participant, message));
             }
+        }
+
+        [Serializable]
+        private class RoomList
+        {
+            public string[] Rooms => rooms;
+            [SerializeField] private string[] rooms;
+
+            public string Message => message;
+            [SerializeField] private string message;
         }
     }
 }

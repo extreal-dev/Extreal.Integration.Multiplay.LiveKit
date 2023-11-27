@@ -12,8 +12,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
 {
     public class LiveKitMultiplayClient : MonoBehaviour
     {
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private string relayURL = "http://localhost:7881";
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private string roomName = "MultiplayTest";
         [SerializeField] private GameObject playerObject;
         [SerializeField] private GameObject[] networkObjects;
 
@@ -23,7 +21,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         private readonly Dictionary<Participant, NetworkClient> connectedClients = new Dictionary<Participant, NetworkClient>();
 
         public IObservable<Unit> OnConnected => transport.OnConnected;
-        public IObservable<Unit> OnDisconnected => transport.OnDisconnected;
+        public IObservable<Unit> OnDisconnecting => transport.OnDisconnecting;
         public IObservable<DisconnectReason> OnUnexpectedDisconnected => transport.OnUnexpectedDisconnected;
         public IObservable<Unit> OnConnectionApprovalRejected => transport.OnConnectionApprovalRejected;
         public IObservable<RemoteParticipant> OnUserConnected => transport.OnUserConnected;
@@ -46,7 +44,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public void Awake()
             => Initialize();
 
-        [SuppressMessage("Usage", "CC0022")]
         private void Initialize()
         {
             if (Logger.IsDebug())
@@ -57,14 +54,17 @@ namespace Extreal.Integration.Multiplay.LiveKit
             onObjectSpawned.AddTo(this);
             transport.AddTo(this);
 
-            transport.OnDisconnected
+            transport.OnDisconnecting
                 .Merge(transport.OnUnexpectedDisconnected.Select(_ => Unit.Default))
                 .TakeUntilDestroy(this)
                 .Subscribe(_ => Clear());
 
             transport.OnUserConnected
                 .TakeUntilDestroy(this)
-                .Subscribe(participant => connectedClients[participant] = new NetworkClient(participant));
+                .Subscribe(participant =>
+                {
+                    connectedClients[participant] = new NetworkClient(participant);
+                });
 
             transport.OnUserDisconnected
                 .TakeUntilDestroy(this)
@@ -196,7 +196,10 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
         }
 
-        public async UniTask ConnectAsync(string token, string url = default)
+        public void Initialize(TransportConfig transportConfig = default)
+            => transport.Initialize(transportConfig);
+
+        public async UniTask ConnectAsync(ConnectionConfig connectionConfig)
         {
             if (transport.IsConnected)
             {
@@ -207,17 +210,12 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 return;
             }
 
-            if (string.IsNullOrEmpty(url))
-            {
-                url = relayURL;
-            }
-
             if (Logger.IsDebug())
             {
-                Logger.LogDebug($"Connect: url={url}, token={token}");
+                Logger.LogDebug($"Connect: url={connectionConfig.Url}");
             }
 
-            var participant = await transport.ConnectAsync(url, token);
+            var participant = await transport.ConnectAsync(connectionConfig);
             LocalClient = new NetworkClient(participant);
             connectedClients[participant] = LocalClient;
         }
@@ -232,8 +230,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
             transport.Disconnect();
         }
 
-        public void DeleteRoom()
-            => transport.DeleteRoom();
+        public UniTask DeleteRoomAsync()
+            => transport.DeleteRoomAsync();
 
         public GameObject SpawnPlayer(Vector3 position = default, Quaternion rotation = default, Transform parent = default)
         {
@@ -243,8 +241,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
 
             var networkObjectInfo = new NetworkObjectInfo(playerObject.GetInstanceID(), position, rotation);
-            localNetworkObjectInfos.Add(networkObjectInfo.ObjectGuid, networkObjectInfo);
-
             return SpawnInternal(playerObject, networkObjectInfo, LocalClient.SetPlayerObject, LocalClient.Participant, parent);
         }
 
@@ -256,8 +252,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
 
             var networkObjectInfo = new NetworkObjectInfo(objectPrefab.GetInstanceID(), position, rotation);
-            localNetworkObjectInfos.Add(networkObjectInfo.ObjectGuid, networkObjectInfo);
-
             return SpawnInternal(objectPrefab, networkObjectInfo, LocalClient.AddNetworkObject, LocalClient.Participant, parent);
         }
 
@@ -274,6 +268,13 @@ namespace Extreal.Integration.Multiplay.LiveKit
             setToNetworkClient?.Invoke(spawnedObject);
             networkGameObjects.Add(networkObjectInfo.ObjectGuid, spawnedObject);
 
+            if (participant == LocalClient.Participant)
+            {
+                localNetworkObjectInfos.Add(networkObjectInfo.ObjectGuid, networkObjectInfo);
+                var message = new LiveKitMultiplayMessage(LiveKidMultiplayMessageCommand.Create, networkObjectInfo);
+                transport.EnqueueRequest(message);
+            }
+
             onObjectSpawned.OnNext((participant, spawnedObject));
 
             return spawnedObject;
@@ -282,7 +283,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public void SendMessage(string message, DataPacketKind dataPacketKind = DataPacketKind.RELIABLE)
             => transport.SendMessageAsync(message, dataPacketKind).Forget();
 
-        public UniTask<Room[]> ListRoomsAsync()
+        public UniTask<string[]> ListRoomsAsync()
             => transport.ListRoomsAsync();
     }
 

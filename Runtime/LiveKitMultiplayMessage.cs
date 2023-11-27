@@ -20,10 +20,23 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public NetworkObjectInfo Payload => payload;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo payload;
 
-        public LiveKitMultiplayMessage(LiveKidMultiplayMessageCommand liveKidMultiplayMessageCommand, NetworkObjectInfo payload = default)
+        public NetworkObjectInfo[] NetworkObjectInfos => networkObjectInfos;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo[] networkObjectInfos;
+
+        public string Message => message;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private string message;
+
+        public LiveKitMultiplayMessage
+        (
+            LiveKidMultiplayMessageCommand liveKidMultiplayMessageCommand,
+            NetworkObjectInfo payload = default,
+            NetworkObjectInfo[] networkObjectInfos = default,
+            string message = default
+        )
         {
             this.liveKidMultiplayMessageCommand = liveKidMultiplayMessageCommand;
             this.payload = payload;
+            this.networkObjectInfos = networkObjectInfos;
         }
 
         public string ToJson()
