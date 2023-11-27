@@ -7,8 +7,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
     [Serializable]
     public class NetworkObjectInfo : ISerializationCallbackReceiver
     {
-        public static NetworkObjectInfo Empty => new NetworkObjectInfo(Guid.Empty, -1, Vector3.zero, Quaternion.identity);
-
         public Guid ObjectGuid { get; private set; }
         [SerializeField] private string objectId;
 
@@ -30,13 +28,13 @@ namespace Extreal.Integration.Multiplay.LiveKit
         private LiveKitPlayerInputValues values;
         [SerializeField] private string jsonOfValues;
 
-        public NetworkObjectInfo(Guid guid, int instanceId, Vector3 position, Quaternion rotation)
+        public NetworkObjectInfo(int instanceId, Vector3 position, Quaternion rotation)
         {
-            ObjectGuid = guid;
             this.instanceId = instanceId;
             this.position = position;
             this.rotation = rotation;
 
+            ObjectGuid = Guid.NewGuid();
             CreatedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
         }

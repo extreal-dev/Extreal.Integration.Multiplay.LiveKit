@@ -1,4 +1,4 @@
-#if UNITY_WEBGL && !UNITY_EDITOR
+#if UNITY_WEBGL // && !UNITY_EDITOR
 using Cysharp.Threading.Tasks;
 using Extreal.Core.Common.System;
 using Extreal.Core.Logging;
@@ -34,8 +34,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public IObservable<RemoteParticipant> OnUserDisconnected => onUserDisconnected;
         private readonly Subject<RemoteParticipant> onUserDisconnected;
 
-        public IObservable<(Participant participant, LiveKidMultiplayMessageContainer messageContainer)> OnMessageReceived => onMessageReceived;
-        private readonly Subject<(Participant, LiveKidMultiplayMessageContainer)> onMessageReceived;
+        public IObservable<(Participant, string)> OnMessageReceived => onMessageReceived;
+        private readonly Subject<(Participant, string)> onMessageReceived;
 
         private readonly Queue<LiveKitMultiplayMessage> requestQueue = new Queue<LiveKitMultiplayMessage>();
         private readonly Queue<(Participant, LiveKitMultiplayMessage)> responseQueue = new Queue<(Participant, LiveKitMultiplayMessage)>();
@@ -63,7 +63,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             onUserConnected = new Subject<RemoteParticipant>().AddTo(disposables);
             onUserDisconnected = new Subject<RemoteParticipant>().AddTo(disposables);
             onConnectionApprovalRejected = new Subject<Unit>().AddTo(disposables);
-            onMessageReceived = new Subject<(Participant, LiveKidMultiplayMessageContainer)>().AddTo(disposables);
+            onMessageReceived = new Subject<(Participant, string)>().AddTo(disposables);
 
             room = new Room().AddTo(disposables);
             room.StateChanged += StateChangedEventHandler;
@@ -95,6 +95,11 @@ namespace Extreal.Integration.Multiplay.LiveKit
                     SendMessageAsync(jsonMsg).Forget();
                 }
             }
+        }
+
+        public async UniTask InitializeAsync()
+        {
+
         }
 
         public async UniTask<LocalParticipant> ConnectAsync(string url, string token)
@@ -130,6 +135,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
             await room.LocalParticipant.PublishData(data, dataPacketKind);
         }
 
+        public async UniTask<Room[]> ListRoomsAsync() { return Array.Empty<Room>(); }
+
         private void StateChangedEventHandler(ConnectionState state)
         {
             if (state is ConnectionState.Connected)
@@ -162,8 +169,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             var message = JsonUtility.FromJson<LiveKitMultiplayMessage>(dataStr);
             if (message.LiveKidMultiplayMessageCommand is LiveKidMultiplayMessageCommand.None)
             {
-                var messageContainer = JsonUtility.FromJson<LiveKidMultiplayMessageContainer>(dataStr);
-                onMessageReceived.OnNext((participant, messageContainer));
+                onMessageReceived.OnNext((participant, dataStr));
             }
             else
             {
