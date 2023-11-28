@@ -117,7 +117,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             apiServerUrl = liveKitTransportConfig.ApiServerUrl;
         }
 
-        public async UniTask<string[]> ListRoomsAsync()
+        public async UniTask<RoomInfo[]> ListRoomsAsync()
         {
             using var uwr = UnityWebRequest.Get($"{apiServerUrl}/listRooms");
             await uwr.SendWebRequest();
@@ -205,8 +205,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
         [Serializable]
         private class RoomList
         {
-            public string[] Rooms => rooms;
-            [SerializeField] private string[] rooms;
+            public RoomInfo[] Rooms => rooms;
+            [SerializeField] private RoomInfo[] rooms;
 
             public string Message => message;
             [SerializeField] private string message;

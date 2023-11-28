@@ -301,7 +301,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public void SendMessage(string message, DataPacketKind dataPacketKind = DataPacketKind.RELIABLE)
             => transport.EnqueueRequest(new LiveKitMultiplayMessage(LiveKidMultiplayMessageCommand.Message, dataPacketKind, message: message));
 
-        public UniTask<string[]> ListRoomsAsync()
+        public UniTask<RoomInfo[]> ListRoomsAsync()
             => transport.ListRoomsAsync();
     }
 

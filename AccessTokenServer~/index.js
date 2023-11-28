@@ -47,7 +47,10 @@ app.get("/listRooms", (_, res) => {
         .listRooms()
         .then((rooms) => {
             res.json({
-                rooms: rooms.map((room) => room.name),
+                rooms: rooms.map((room) => ({
+                    id: room.sid,
+                    name: room.name,
+                })),
             });
         })
         .catch((reason) => {

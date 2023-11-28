@@ -76,6 +76,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public void Disconnect() => throw new NotImplementedException();
         public async UniTask DeleteRoomAsync() => throw new NotImplementedException();
         public async UniTask SendMessageAsync(string message, DataPacketKind dataPacketKind = DataPacketKind.RELIABLE) => throw new NotImplementedException();
-        public async UniTask<string[]> ListRoomsAsync() => throw new NotImplementedException();
+        public async UniTask<RoomInfo[]> ListRoomsAsync() => throw new NotImplementedException();
     }
 }
