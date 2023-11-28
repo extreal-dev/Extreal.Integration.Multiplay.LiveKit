@@ -39,20 +39,20 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public IObservable<(Participant, string)> OnMessageReceived => onMessageReceived;
         private readonly Subject<(Participant, string)> onMessageReceived;
 
-        private readonly Queue<LiveKitMultiplayMessage> requestQueue = new Queue<LiveKitMultiplayMessage>();
-        private readonly Queue<(Participant, LiveKitMultiplayMessage)> responseQueue = new Queue<(Participant, LiveKitMultiplayMessage)>();
+        private readonly Queue<MultiplayMessage> requestQueue = new Queue<MultiplayMessage>();
+        private readonly Queue<(Participant, MultiplayMessage)> responseQueue = new Queue<(Participant, MultiplayMessage)>();
 
         private readonly CompositeDisposable disposables = new CompositeDisposable();
 
         private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(NativeLiveKitMultiplayTransport));
 
-        public void EnqueueRequest(LiveKitMultiplayMessage message)
+        public void EnqueueRequest(MultiplayMessage message)
                     => requestQueue.Enqueue(message);
 
         public int ResponseQueueCount()
             => responseQueue.Count;
 
-        public (Participant participant, LiveKitMultiplayMessage message) DequeueResponse()
+        public (Participant participant, MultiplayMessage message) DequeueResponse()
             => responseQueue.Count != 0 ? responseQueue.Dequeue() : (null, null);
 
         [SuppressMessage("Usage", "CC0022")]

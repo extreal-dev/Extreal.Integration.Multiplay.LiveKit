@@ -1,18 +1,17 @@
 using System.Collections.Generic;
-using LiveKit;
 using UnityEngine;
 
 namespace Extreal.Integration.Multiplay.LiveKit
 {
     public class NetworkClient
     {
-        public Participant Participant { get; }
+        public string UserIdentity { get; }
         public GameObject PlayerObject { get; private set; }
         public IReadOnlyList<GameObject> NetworkObjects => networkObjects;
         private readonly List<GameObject> networkObjects = new List<GameObject>();
 
-        public NetworkClient(Participant participant)
-            => Participant = participant;
+        public NetworkClient(string userIdentity)
+            => UserIdentity = userIdentity;
 
         public void SetPlayerObject(GameObject playerObject)
             => PlayerObject = playerObject;

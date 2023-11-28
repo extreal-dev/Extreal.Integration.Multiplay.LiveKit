@@ -1,11 +1,10 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using LiveKit;
 using UnityEngine;
 
 namespace Extreal.Integration.Multiplay.LiveKit
 {
-    public enum LiveKidMultiplayMessageCommand
+    public enum MultiplayMessageCommand
     {
         None,
         Create,
@@ -15,13 +14,13 @@ namespace Extreal.Integration.Multiplay.LiveKit
     };
 
     [Serializable]
-    public class LiveKitMultiplayMessage
+    public class MultiplayMessage
     {
-        public LiveKidMultiplayMessageCommand LiveKidMultiplayMessageCommand => liveKidMultiplayMessageCommand;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private LiveKidMultiplayMessageCommand liveKidMultiplayMessageCommand;
+        public string Topic => topic;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private string topic;
 
-        public DataPacketKind DataPacketKind { get; }
-        public RemoteParticipant ToParticipant { get; }
+        public MultiplayMessageCommand MultiplayMessageCommand => multiplayMessageCommand;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private MultiplayMessageCommand multiplayMessageCommand;
 
         public NetworkObjectInfo NetworkObjectInfo => networkObjectInfo;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo networkObjectInfo;
@@ -32,19 +31,17 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public string Message => message;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private string message;
 
-        public LiveKitMultiplayMessage
+        public MultiplayMessage
         (
-            LiveKidMultiplayMessageCommand liveKidMultiplayMessageCommand,
-            DataPacketKind dataPacketKind = DataPacketKind.RELIABLE,
-            RemoteParticipant toParticipant = default,
+            string topic,
+            MultiplayMessageCommand multiplayMessageCommand,
             NetworkObjectInfo networkObjectInfo = default,
             NetworkObjectInfo[] networkObjectInfos = default,
             string message = default
         )
         {
-            this.liveKidMultiplayMessageCommand = liveKidMultiplayMessageCommand;
-            DataPacketKind = dataPacketKind;
-            ToParticipant = toParticipant;
+            this.topic = topic;
+            this.multiplayMessageCommand = multiplayMessageCommand;
             this.networkObjectInfo = networkObjectInfo;
             this.networkObjectInfos = networkObjectInfos;
             this.message = message;
