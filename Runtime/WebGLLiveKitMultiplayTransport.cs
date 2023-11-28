@@ -142,7 +142,12 @@ namespace Extreal.Integration.Multiplay.LiveKit
             roomName = liveKitConnectionConfig.RoomName;
 
             IsConnected = true;
-            onConnected.OnNext(Unit.Default);
+
+            UniTask.Void(async () =>
+            {
+                await UniTask.Yield();
+                onConnected.OnNext(Unit.Default);
+            });
 
             return room.LocalParticipant;
         }
