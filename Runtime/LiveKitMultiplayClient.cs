@@ -88,6 +88,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
             AddToNetworkObjectPrefabs(playerObject);
             Array.ForEach(networkObjects, AddToNetworkObjectPrefabs);
+
+            DontDestroyOnLoad(this);
         }
 
         private void AddToNetworkObjectPrefabs(GameObject go)
