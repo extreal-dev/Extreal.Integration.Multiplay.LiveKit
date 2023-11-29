@@ -1,0 +1,36 @@
+# services:
+#   nodejs:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     container_name: nodejs
+#     restart: unless-stopped
+#     env_file: ${PWD}/.env
+#     ports:
+#       - '3020:3020'
+services:
+    sigredis:
+        image: redis:7.0.10-alpine
+        container_name: sigredis
+        restart: always
+        # ports:
+        #  - 6379:6379
+        expose:
+            - '${REDIS_PORT:-6379}'
+        tty: true
+    sigapp:
+        build: .
+        container_name: sigapp
+        init: true
+        restart: always
+        tty: true
+        env_file: ${PWD}/.env
+        ports:
+         - 3000:3000
+        expose:
+            - ${APP_PORT:-3000}
+            - ${API_PORT:-3001}
+            - ${REDIS_HOST:-localhost}
+            - ${REDIS_PORT:-6379}
+        depends_on:
+            - sigredis

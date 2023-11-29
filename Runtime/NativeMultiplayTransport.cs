@@ -20,8 +20,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public bool IsConnected { get; private set; }
         public List<string> ConnectedParticipants => new List<string>();
 
-        public IObservable<Unit> OnConnected => onConnected;
-        private readonly Subject<Unit> onConnected;
+        public IObservable<string> OnConnected => onConnected;
+        private readonly Subject<string> onConnected;
 
         public IObservable<Unit> OnDisconnecting => onDisconnecting;
         private readonly Subject<Unit> onDisconnecting;
@@ -42,8 +42,9 @@ namespace Extreal.Integration.Multiplay.LiveKit
         private readonly Subject<(string, string)> onMessageReceived;
 
         private SocketIO ioClient;
-        private string relayServerUrl;
+        private string relayServerUrl = "";
         private string roomName;
+        private string userIdentity;
 
         private readonly Queue<MultiplayMessage> requestQueue = new Queue<MultiplayMessage>();
         private readonly Queue<(string, MultiplayMessage)> responseQueue = new Queue<(string, MultiplayMessage)>();
@@ -64,7 +65,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         [SuppressMessage("Usage", "CC0022")]
         public NativeMultiplayTransport()
         {
-            onConnected = new Subject<Unit>().AddTo(disposables);
+            onConnected = new Subject<string>().AddTo(disposables);
             onDisconnecting = new Subject<Unit>().AddTo(disposables);
             onUnexpectedDisconnected = new Subject<string>().AddTo(disposables);
             onUserConnected = new Subject<string>().AddTo(disposables);
@@ -74,19 +75,26 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
             ioClient = new SocketIO(relayServerUrl, new SocketIOOptions { EIO = SocketIOClient.EngineIO.V4 }).AddTo(disposables);
 
-            ioClient.OnConnected += ParticipantConnectedEventHandler;
+            ioClient.OnConnected += ConnectedEventHandler;
             ioClient.OnDisconnected += DisconnectedEventHandler;
 
             // ioClient.ParticipantDisconnected += ParticipantDisconnectedEventHandler;
-            ioClient.On("onRoomMessage", DataReceivedEventHandler);
+            ioClient.On("onRoomMessage", UserConnectedEventHandler);
+            ioClient.On("RoomMessage", DataReceivedEventHandler);
+        }
+
+        private void ConnectedEventHandler(object sender, EventArgs e)
+        {
+            IsConnected = true;
+            userIdentity = Guid.NewGuid().ToString();
+            onConnected.OnNext(userIdentity);
         }
 
         protected override void ReleaseManagedResources()
         {
-            ioClient.OnConnected -= ParticipantConnectedEventHandler;
+            ioClient.OnConnected -= ConnectedEventHandler;
             ioClient.OnDisconnected -= DisconnectedEventHandler;
 
-            // room.ParticipantConnected -= ParticipantConnectedEventHandler;
             ioClient.Dispose();
             ioClient = null;
 
@@ -130,7 +138,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             return roomList.Rooms;
         }
 
-        public async UniTask<string> ConnectAsync(ConnectionConfig connectionConfig)
+        public async UniTask ConnectAsync(ConnectionConfig connectionConfig)
         {
             if (connectionConfig is not LiveKitConnectionConfig liveKitConnectionConfig)
             {
@@ -141,19 +149,9 @@ namespace Extreal.Integration.Multiplay.LiveKit
             {
                 Logger.LogDebug($"Connect: url={liveKitConnectionConfig.Url}, token={liveKitConnectionConfig.AccessToken}");
             }
-
-            await ioClient.ConnectAsync();
             roomName = liveKitConnectionConfig.RoomName;
-
-            IsConnected = true;
-
-            UniTask.Void(async () =>
-            {
-                await UniTask.Yield();
-                onConnected.OnNext(Unit.Default);
-            });
-
-            return ioClient.Id;
+            var userIdentity = Guid.NewGuid();
+            await ioClient.ConnectAsync();
         }
 
         public async Task DisconnectAsync()
@@ -188,16 +186,12 @@ namespace Extreal.Integration.Multiplay.LiveKit
             onUnexpectedDisconnected.OnNext(e);
         }
 
-        private void ParticipantConnectedEventHandler(object sender, EventArgs e)
+        private void UserConnectedEventHandler(SocketIOResponse response)
         {
-            // var message = new MultiplayMessage(roomName, MultiplayMessageCommand.);
-            // SendMessageAsync();
-            onUserConnected.OnNext(sender.ToString());
+            var jsonStr = response.GetValue<string>();
+            var message = JsonUtility.FromJson<MultiplayMessage>(jsonStr);
+            onUserConnected.OnNext(message.NetworkObjectInfo.ObjectGuid.ToString());
         }
-
-
-        // private void ParticipantDisconnectedEventHandler(object sender, string e)
-        //     => onUserDisconnected.OnNext(sender.ToString());
 
         private void DataReceivedEventHandler(SocketIOResponse response)
         {
@@ -205,7 +199,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
             var message = JsonUtility.FromJson<MultiplayMessage>(dataStr);
 
             responseQueue.Enqueue(("message", message));
-
         }
 
         [Serializable]

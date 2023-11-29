@@ -20,7 +20,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public IReadOnlyDictionary<string, NetworkClient> ConnectedClients => connectedClients;
         private readonly Dictionary<string, NetworkClient> connectedClients = new Dictionary<string, NetworkClient>();
 
-        public IObservable<Unit> OnConnected => transport.OnConnected;
+        public IObservable<string> OnConnected => transport.OnConnected;
         public IObservable<Unit> OnDisconnecting => transport.OnDisconnecting;
         public IObservable<string> OnUnexpectedDisconnected => transport.OnUnexpectedDisconnected;
         public IObservable<Unit> OnConnectionApprovalRejected => transport.OnConnectionApprovalRejected;
@@ -53,6 +53,13 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
             onObjectSpawned.AddTo(this);
             transport.AddTo(this);
+
+            // transport.OnConnected.Subscribe(_ =>
+            // {
+            //     SpawnPlayer();
+            //     // LocalClient = new NetworkClient(userIndentiy);
+            //     // connectedClients[userIndentiy] = LocalClient;
+            // });
 
             transport.OnDisconnecting
                 .Merge(transport.OnUnexpectedDisconnected.Select(_ => Unit.Default))
@@ -232,10 +239,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             {
                 Logger.LogDebug($"Connect: url={connectionConfig.Url}");
             }
-
-            var participant = await transport.ConnectAsync(connectionConfig);
-            LocalClient = new NetworkClient(participant);
-            connectedClients[participant] = LocalClient;
+            await transport.ConnectAsync(connectionConfig);
         }
 
         public void Disconnect()
