@@ -42,7 +42,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         private readonly Subject<(string, string)> onMessageReceived;
 
         private SocketIO ioClient;
-        private string relayServerUrl = "http://localhost:3000";
+        private string relayServerUrl = "http://localhost:3030";
         private string roomName;
         private string userIdentity;
 
@@ -144,16 +144,16 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
         public async UniTask ConnectAsync(ConnectionConfig connectionConfig)
         {
-            if (connectionConfig is not LiveKitConnectionConfig liveKitConnectionConfig)
+            if (connectionConfig is not RedisConnectionConfig redisConnectionConfig)
             {
                 throw new ArgumentException("Expect LiveKitConnectionConfig", nameof(connectionConfig));
             }
 
             if (Logger.IsDebug())
             {
-                Logger.LogDebug($"Connect: url={liveKitConnectionConfig.Url}, token={liveKitConnectionConfig.AccessToken}");
+                Logger.LogDebug($"Connect: url={redisConnectionConfig.Url}");
             }
-            roomName = liveKitConnectionConfig.RoomName;
+            roomName = redisConnectionConfig.RoomName;
             await ioClient.ConnectAsync();
         }
 

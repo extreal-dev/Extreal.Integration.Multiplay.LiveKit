@@ -13,9 +13,9 @@ FROM node:18.16.0-alpine as builder
 FROM node:18.16.0-alpine as runner
     WORKDIR /work
     ENV NODE_ENV production
-    ENV APP_PORT 3000 \
-        API_PORT 3001
-    EXPOSE 3000 3001
+    ENV APP_PORT 3030 \
+        API_PORT 3031
+    EXPOSE 3030 3031
     # 本番環境のパッケージをインストール
     COPY package*.json ./
     RUN npm install --omit=dev && npm cache clean --force

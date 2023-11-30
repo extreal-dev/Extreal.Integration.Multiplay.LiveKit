@@ -11,7 +11,7 @@ import * as promClient from 'prom-client';
 const appPort = Number(process.env.APP_PORT) || 3030;
 const apiPort = Number(process.env.API_PORT) || 3031;
 const redisHost = process.env.REDIS_HOST || 'localhost';
-const redisPort = Number(process.env.REDIS_PORT) || 6379;
+const redisPort = Number(process.env.REDIS_PORT) || 7379;
 
 // const promClient = require('prom-client');
 const register = new promClient.Registry();
