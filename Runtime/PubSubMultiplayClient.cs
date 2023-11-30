@@ -25,11 +25,11 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public IObservable<string> OnUnexpectedDisconnected => transport.OnUnexpectedDisconnected;
         public IObservable<Unit> OnConnectionApprovalRejected => transport.OnConnectionApprovalRejected;
         public IObservable<string> OnUserConnected => transport.OnUserConnected;
-        public IObservable<string> OnUserDisconnected => transport.OnUserDisconnected;
+        public IObservable<string> OnUserDisconnected => transport.OnUserDisconnecting;
         public IObservable<(string userIdentity, GameObject networkObject)> OnObjectSpawned => onObjectSpawned;
         [SuppressMessage("Usage", "CC0033")]
         private readonly Subject<(string, GameObject)> onObjectSpawned = new Subject<(string, GameObject)>();
-        public IObservable<(string userIdentity, string message)> OnMessageReceived => transport.OnMessageReceived;
+        public IObservable<(string userIdentityRemote, string message)> OnMessageReceived => transport.OnMessageReceived;
 
         private readonly Dictionary<Guid, NetworkObjectInfo> localNetworkObjectInfos = new Dictionary<Guid, NetworkObjectInfo>();
         private readonly Dictionary<Guid, GameObject> networkGameObjects = new Dictionary<Guid, GameObject>();
@@ -68,20 +68,20 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
             transport.OnUserConnected
                 .TakeUntilDestroy(this)
-                .Subscribe(userIdentity =>
+                .Subscribe(userIdentityRemote =>
                 {
-                    connectedClients[userIdentity] = new NetworkClient(userIdentity);
+                    connectedClients[userIdentityRemote] = new NetworkClient(userIdentityRemote);
 
                     var networkObjectInfos = localNetworkObjectInfos.Values.ToArray();
-                    var message = new MultiplayMessage(userIdentity, Topic, MultiplayMessageCommand.UserConnected, networkObjectInfos: networkObjectInfos);
+                    var message = new MultiplayMessage(userIdentityRemote, Topic, MultiplayMessageCommand.UserConnected, networkObjectInfos: networkObjectInfos);
                     transport.EnqueueRequest(message);
                 });
 
-            transport.OnUserDisconnected
+            transport.OnUserDisconnecting
                 .TakeUntilDestroy(this)
-                .Subscribe(userIdentity =>
+                .Subscribe(userIdentityRemote =>
                 {
-                    var networkClient = connectedClients[userIdentity];
+                    var networkClient = connectedClients[userIdentityRemote];
                     if (networkClient.PlayerObject != null)
                     {
                         Destroy(networkClient.PlayerObject);
@@ -90,7 +90,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
                     {
                         Destroy(networkObject);
                     }
-                    connectedClients.Remove(userIdentity);
+                    connectedClients.Remove(userIdentityRemote);
                 });
 
             AddToNetworkObjectPrefabs(playerObject);
@@ -149,7 +149,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
             while (transport.ResponseQueueCount() > 0)
             {
-                (var userIdentity, var message) = transport.DequeueResponse();
+                (var userIdentityRemote, var message) = transport.DequeueResponse();
                 if (message == null)
                 {
                     continue;
@@ -162,7 +162,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
                 if (message.MultiplayMessageCommand is MultiplayMessageCommand.Create)
                 {
-                    CreateObject(userIdentity, message.NetworkObjectInfo);
+                    CreateObject(userIdentityRemote, message.NetworkObjectInfo);
                 }
                 else if (message.MultiplayMessageCommand is MultiplayMessageCommand.Update)
                 {
@@ -173,10 +173,10 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 }
                 else if (message.MultiplayMessageCommand is MultiplayMessageCommand.UserConnected)
                 {
-                    connectedClients[userIdentity] = new NetworkClient(userIdentity);
+                    connectedClients[userIdentityRemote] = new NetworkClient(userIdentityRemote);
                     foreach (var networkObjectInfo in message.NetworkObjectInfos)
                     {
-                        CreateObject(userIdentity, networkObjectInfo);
+                        CreateObject(userIdentityRemote, networkObjectInfo);
                     }
                 }
             }

@@ -7,10 +7,11 @@ namespace Extreal.Integration.Multiplay.LiveKit
     public enum MultiplayMessageCommand
     {
         None,
+        Join,
         Create,
         Update,
-        UserConnected,
-        Message,
+        UserConnected,//serverは気にしなくてよい
+        Message,//serverは気にしなくてよい
     };
 
     [Serializable]

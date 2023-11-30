@@ -35,8 +35,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public IObservable<string> OnUserConnected => onUserConnected;
         private readonly Subject<string> onUserConnected;
 
-        public IObservable<string> OnUserDisconnected => onUserDisconnected;
-        private readonly Subject<string> onUserDisconnected;
+        public IObservable<string> OnUserDisconnecting => onUserDisconnecting;
+        private readonly Subject<string> onUserDisconnecting;
 
         public IObservable<(string, string)> OnMessageReceived => onMessageReceived;
         private readonly Subject<(string, string)> onMessageReceived;
@@ -69,7 +69,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             onDisconnecting = new Subject<Unit>().AddTo(disposables);
             onUnexpectedDisconnected = new Subject<string>().AddTo(disposables);
             onUserConnected = new Subject<string>().AddTo(disposables);
-            onUserDisconnected = new Subject<string>().AddTo(disposables);
+            onUserDisconnecting = new Subject<string>().AddTo(disposables);
             onConnectionApprovalRejected = new Subject<Unit>().AddTo(disposables);
             onMessageReceived = new Subject<(string, string)>().AddTo(disposables);
 
@@ -78,15 +78,19 @@ namespace Extreal.Integration.Multiplay.LiveKit
             ioClient.OnConnected += ConnectedEventHandler;
             ioClient.OnDisconnected += DisconnectedEventHandler;
 
-            // ioClient.ParticipantDisconnected += ParticipantDisconnectedEventHandler;
-            ioClient.On("onRoomMessage", UserConnectedEventHandler);
-            ioClient.On("RoomMessage", DataReceivedEventHandler);
+            ioClient.On("user connected", UserConnectedEventHandler);
+            ioClient.On("user disconnecting", UserDisconnectingEventHandler);
+            ioClient.On("message", MessageReceivedEventHandler);
         }
+
+        private void UserDisconnectingEventHandler(SocketIOResponse response) => throw new NotImplementedException();
 
         private void ConnectedEventHandler(object sender, EventArgs e)
         {
             IsConnected = true;
             userIdentity = Guid.NewGuid().ToString();
+            var message = new MultiplayMessage(userIdentity, roomName, MultiplayMessageCommand.Join);
+            SendMessageAsync(message.ToJson()).Forget();
             onConnected.OnNext(userIdentity);
         }
 
@@ -116,7 +120,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
         private async UniTask SendMessageAsync(string jsonMsg)
         {
-            await ioClient.EmitAsync("RoomMessage", jsonMsg);
+            await ioClient.EmitAsync("message", jsonMsg);
         }
 
         public void Initialize(TransportConfig transportConfig)
@@ -150,7 +154,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 Logger.LogDebug($"Connect: url={liveKitConnectionConfig.Url}, token={liveKitConnectionConfig.AccessToken}");
             }
             roomName = liveKitConnectionConfig.RoomName;
-            var userIdentity = Guid.NewGuid();
             await ioClient.ConnectAsync();
         }
 
@@ -193,7 +196,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             onUserConnected.OnNext(message.NetworkObjectInfo.ObjectGuid.ToString());
         }
 
-        private void DataReceivedEventHandler(SocketIOResponse response)
+        private void MessageReceivedEventHandler(SocketIOResponse response)
         {
             var dataStr = response.GetValue<string>();
             var message = JsonUtility.FromJson<MultiplayMessage>(dataStr);

@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Extreal.Integration.Multiplay.LiveKit
 {
     [Serializable]
-    public class LiveKitPlayerInputValues
+    public class MultiplayPlayerInputValues
     {
         public Vector2 Move => move;
         [SerializeField] private Vector2 move;

@@ -8,8 +8,8 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import * as promClient from 'prom-client';
 
-const appPort = Number(process.env.APP_PORT) || 3000;
-const apiPort = Number(process.env.API_PORT) || 3001;
+const appPort = Number(process.env.APP_PORT) || 3030;
+const apiPort = Number(process.env.API_PORT) || 3031;
 const redisHost = process.env.REDIS_HOST || 'localhost';
 const redisPort = Number(process.env.REDIS_PORT) || 6379;
 
@@ -68,20 +68,22 @@ class Quaternion {
     }
 }
 
-class NetworkObject {
+class NetworkObjectInfo {
     ObjectId: string;
-    GameObjectHash: number;
+    InstanceId: number;
     Position: Vector3;
     Rotation: Quaternion;
+    Values: MultiplayPlayerInputValues;
     PlayerInput_Move: Vector2;
     PlayerInput_Look: Vector2;
     PlayerInput_Jump: boolean;
     PlayerInput_Sprint: boolean;
     constructor() {
         this.ObjectId = '';
-        this.GameObjectHash = -1;
+        this.InstanceId = -1;
         this.Position = new Vector3(0.0, 0.0, 0.0);
         this.Rotation = new Quaternion(0.0, 0.0, 0.0, 0.0);
+        this.Values = new MultiplayPlayerInputValues();
         this.PlayerInput_Move = new Vector2(0.0, 0.0);
         this.PlayerInput_Look = new Vector2(0.0, 0.0);
         this.PlayerInput_Jump = false;
@@ -89,23 +91,37 @@ class NetworkObject {
     }
 }
 
+class MultiplayPlayerInputValues {
+    Move: Vector2;
+    constructor() {
+        this.Move = new Vector2(0.0, 0.0);
+    }
+}
+
 const MessageCommand = {
     None: 0,
-    Create: 1,
-    Update: 2,
-    Delete: 3
+    Join: 1,
+    Create: 2,
+    Update: 3,
+    Delete: 4
 };
 
 type MessageCommand = (typeof MessageCommand)[keyof typeof MessageCommand];
 
 class Message {
+    UserIdentity: string;
     Topic: string;
     Command: MessageCommand;
-    Payload: NetworkObject;
-    constructor(Topic: string, Payload: NetworkObject) {
+    NetworkObjectInfo: NetworkObjectInfo;
+    NetworkObjectInfos: NetworkObjectInfo[];
+    Message: string;
+    constructor(UserIdentity: string, Topic: string, NetworkObjectInfo: NetworkObjectInfo,  NetworkObjectInfos: NetworkObjectInfo[], Message: string) {
+        this.UserIdentity = UserIdentity;
         this.Topic = Topic;
         this.Command = 0;
-        this.Payload = Payload;
+        this.NetworkObjectInfo = NetworkObjectInfo;
+        this.NetworkObjectInfos = NetworkObjectInfos;
+        this.Message = Message;
     }
     ToJson() {
         return JSON.stringify(this);
@@ -139,20 +155,27 @@ subClient.on('error', (err) => {
 io.adapter(createAdapter(pubClient, subClient)); // redis-adapter
 
 io.on('connection', async (socket: Socket) => {
+    // memo:この時に、ルームにいるひとにuser connectedの emit("user connected", "use識別子がはいったmessage")
+    //　サーバでuse識別子を作成しｍ、各clientに返す
     // messageイベントリスナ
-    socket.on('RoomMessage', async (msg: string) => {
+    socket.on('message', async (msg: string) => {
         const msgObj: Message = JSON.parse(msg) as Message;
-        // console.log('RoomMessage: %o', msgObj);
         // ルームに加入する場合(初回の接続)
-        if (msgObj.Command === MessageCommand.Create) {
+        if (msgObj.Command === MessageCommand.Join) {
             const roomName = msgObj.Topic;
-            console.log('Join[%s] Room: %s', socket.id, roomName);
+            console.log('Join[%s] Room: %s', socket.id, msgObj.UserIdentity, roomName);
 
             await socket.join(roomName); // ルームへ加入
             // 状態を保存
             await redisClient.set(socket.id.toString(), msg);
             // ルームにいるクライアントにユーザが参加したことを通知
-            io.to(roomName).emit('onRoomMessage', msg);
+            io.to(roomName).emit('user connected', msg);
+        }
+
+        // console.log('message: %o', msgObj);
+        if (msgObj.Command === MessageCommand.Create) {
+            const roomName = msgObj.Topic;
+            console.log('Join[%s] Room: %s', socket.id, roomName);
 
             // すでにルームへ参加しているユーザの生成情報を，接続したクライアントに通知
             const clients = io.sockets.adapter.rooms.get(roomName);
@@ -164,7 +187,7 @@ io.on('connection', async (socket: Socket) => {
                         const newObj: Message = JSON.parse(v) as Message;
                         newObj.Command = MessageCommand.Create;
                         const jsonStr = JSON.stringify(newObj);
-                        io.to(socket.id).emit('onRoomMessage', jsonStr);
+                        io.to(socket.id).emit('message', jsonStr);
                     }
                 }
             } else {
@@ -208,7 +231,7 @@ io.on('connection', async (socket: Socket) => {
                         socket.id.toString(),
                         room
                     );
-                    io.to(room).emit('onRoomMessage', jsonStr);
+                    io.to(room).emit('user disconnecting', jsonStr);
                 }
             })
         );

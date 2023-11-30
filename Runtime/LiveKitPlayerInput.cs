@@ -5,8 +5,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
 {
     public class LiveKitPlayerInput : MonoBehaviour
     {
-        public virtual LiveKitPlayerInputValues Values => values;
-        private LiveKitPlayerInputValues values;
+        public virtual MultiplayPlayerInputValues Values => values;
+        private MultiplayPlayerInputValues values;
 
         public Vector2 Look => look;
         private Vector2 look;
@@ -23,7 +23,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public void LookInput(Vector2 newLookDirection)
             => look = newLookDirection;
 
-        public virtual void SetValues(LiveKitPlayerInputValues values)
+        public virtual void SetValues(MultiplayPlayerInputValues values)
             => MoveInput(values.Move);
     }
 }

@@ -25,7 +25,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public DateTime UpdatedAt { get; private set; }
         [SerializeField] private long updatedAt;
 
-        private LiveKitPlayerInputValues values;
+        private MultiplayPlayerInputValues values;
         [SerializeField] private string jsonOfValues;
 
         public NetworkObjectInfo(int instanceId, Vector3 position, Quaternion rotation)
@@ -77,7 +77,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
 
             var typeOfValues = input.GetType();
-            values = JsonUtility.FromJson(jsonOfValues, typeOfValues) as LiveKitPlayerInputValues;
+            values = JsonUtility.FromJson(jsonOfValues, typeOfValues) as MultiplayPlayerInputValues;
             input.SetValues(values);
         }
 
