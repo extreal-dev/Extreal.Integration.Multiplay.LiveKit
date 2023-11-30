@@ -16,6 +16,9 @@ namespace Extreal.Integration.Multiplay.LiveKit
     [Serializable]
     public class MultiplayMessage
     {
+        public string UserIdentity => userIdentity;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private string userIdentity;
+
         public string Topic => topic;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private string topic;
 
@@ -33,6 +36,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
         public MultiplayMessage
         (
+            string userIdentity,
             string topic,
             MultiplayMessageCommand multiplayMessageCommand,
             NetworkObjectInfo networkObjectInfo = default,
@@ -40,6 +44,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             string message = default
         )
         {
+            this.userIdentity = userIdentity;
             this.topic = topic;
             this.multiplayMessageCommand = multiplayMessageCommand;
             this.networkObjectInfo = networkObjectInfo;

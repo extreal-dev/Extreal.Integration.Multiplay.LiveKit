@@ -42,7 +42,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         private readonly Subject<(string, string)> onMessageReceived;
 
         private SocketIO ioClient;
-        private string relayServerUrl = "";
+        private string relayServerUrl = "http://localhost:3000";
         private string roomName;
         private string userIdentity;
 

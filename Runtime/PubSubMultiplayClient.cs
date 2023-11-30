@@ -73,15 +73,15 @@ namespace Extreal.Integration.Multiplay.LiveKit
                     connectedClients[userIdentity] = new NetworkClient(userIdentity);
 
                     var networkObjectInfos = localNetworkObjectInfos.Values.ToArray();
-                    var message = new MultiplayMessage(Topic, MultiplayMessageCommand.UserConnected, networkObjectInfos: networkObjectInfos);
+                    var message = new MultiplayMessage(userIdentity, Topic, MultiplayMessageCommand.UserConnected, networkObjectInfos: networkObjectInfos);
                     transport.EnqueueRequest(message);
                 });
 
             transport.OnUserDisconnected
                 .TakeUntilDestroy(this)
-                .Subscribe(participant =>
+                .Subscribe(userIdentity =>
                 {
-                    var networkClient = connectedClients[participant];
+                    var networkClient = connectedClients[userIdentity];
                     if (networkClient.PlayerObject != null)
                     {
                         Destroy(networkClient.PlayerObject);
@@ -90,7 +90,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
                     {
                         Destroy(networkObject);
                     }
-                    connectedClients.Remove(participant);
+                    connectedClients.Remove(userIdentity);
                 });
 
             AddToNetworkObjectPrefabs(playerObject);
@@ -143,13 +143,13 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
             if (localNetworkObjectInfos.Count > 0)
             {
-                var message = new MultiplayMessage(Topic, MultiplayMessageCommand.Update, networkObjectInfos: localNetworkObjectInfos.Values.ToArray());
+                var message = new MultiplayMessage(LocalClient.UserIdentity, Topic, MultiplayMessageCommand.Update, networkObjectInfos: localNetworkObjectInfos.Values.ToArray());
                 transport.EnqueueRequest(message);
             }
 
             while (transport.ResponseQueueCount() > 0)
             {
-                (var participant, var message) = transport.DequeueResponse();
+                (var userIdentity, var message) = transport.DequeueResponse();
                 if (message == null)
                 {
                     continue;
@@ -162,7 +162,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
                 if (message.MultiplayMessageCommand is MultiplayMessageCommand.Create)
                 {
-                    CreateObject(participant, message.NetworkObjectInfo);
+                    CreateObject(userIdentity, message.NetworkObjectInfo);
                 }
                 else if (message.MultiplayMessageCommand is MultiplayMessageCommand.Update)
                 {
@@ -173,10 +173,10 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 }
                 else if (message.MultiplayMessageCommand is MultiplayMessageCommand.UserConnected)
                 {
-                    connectedClients[participant] = new NetworkClient(participant);
+                    connectedClients[userIdentity] = new NetworkClient(userIdentity);
                     foreach (var networkObjectInfo in message.NetworkObjectInfos)
                     {
-                        CreateObject(participant, networkObjectInfo);
+                        CreateObject(userIdentity, networkObjectInfo);
                     }
                 }
             }
@@ -293,7 +293,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             if (userIdentity == LocalClient.UserIdentity)
             {
                 localNetworkObjectInfos.Add(networkObjectInfo.ObjectGuid, networkObjectInfo);
-                var message = new MultiplayMessage(Topic, MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo);
+                var message = new MultiplayMessage(userIdentity, Topic, MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo);
                 transport.EnqueueRequest(message);
             }
 
@@ -302,8 +302,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
             return spawnedObject;
         }
 
-        public void SendMessage(string message)
-            => transport.EnqueueRequest(new MultiplayMessage(Topic, MultiplayMessageCommand.Message, message: message));
+        public void SendMessage(string userIdentity, string message)
+            => transport.EnqueueRequest(new MultiplayMessage(userIdentity, Topic, MultiplayMessageCommand.Message, message: message));
 
         public UniTask<RoomInfo[]> ListRoomsAsync()
             => transport.ListRoomsAsync();
