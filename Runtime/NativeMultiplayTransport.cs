@@ -90,8 +90,10 @@ namespace Extreal.Integration.Multiplay.LiveKit
             IsConnected = true;
             userIdentity = Guid.NewGuid().ToString();
             var message = new MultiplayMessage(userIdentity, roomName, MultiplayMessageCommand.Join);
+            Logger.LogDebug("!!!Before ConnectedEventHandler SendMessageAsync");
             SendMessageAsync(message.ToJson()).Forget();
             onConnected.OnNext(userIdentity);
+            Logger.LogDebug("!!!After ConnectedEventHandler SendMessageAsync");
         }
 
         protected override void ReleaseManagedResources()

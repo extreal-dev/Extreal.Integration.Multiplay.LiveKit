@@ -54,12 +54,12 @@ namespace Extreal.Integration.Multiplay.LiveKit
             onObjectSpawned.AddTo(this);
             transport.AddTo(this);
 
-            // transport.OnConnected.Subscribe(_ =>
-            // {
-            //     SpawnPlayer();
-            //     // LocalClient = new NetworkClient(userIndentiy);
-            //     // connectedClients[userIndentiy] = LocalClient;
-            // });
+            transport.OnConnected.Subscribe(userIdentity =>
+            {
+                Logger.LogDebug("!!!transport.OnConnected");
+                LocalClient = new NetworkClient(userIdentity);
+                connectedClients[userIdentity] = LocalClient;
+            });
 
             transport.OnDisconnecting
                 .Merge(transport.OnUnexpectedDisconnected.Select(_ => Unit.Default))
@@ -257,6 +257,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
         public GameObject SpawnPlayer(Vector3 position = default, Quaternion rotation = default, Transform parent = default)
         {
+            Logger.LogDebug("!!! IN SpawnPlayer");
             if (playerObject == null)
             {
                 throw new InvalidOperationException("Add an object to use as player to the playerObject of this instance");
@@ -286,6 +287,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             Transform parent = default
         )
         {
+            Logger.LogDebug("!!! IN SpawnInternal");
             var spawnedObject = Instantiate(prefab, networkObjectInfo.Position, networkObjectInfo.Rotation, parent);
             setToNetworkClient?.Invoke(spawnedObject);
             networkGameObjects.Add(networkObjectInfo.ObjectGuid, spawnedObject);
@@ -298,7 +300,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
 
             onObjectSpawned.OnNext((userIdentity, spawnedObject));
-
+            Logger.LogDebug("!!! After SpawnInternal");
             return spawnedObject;
         }
 
