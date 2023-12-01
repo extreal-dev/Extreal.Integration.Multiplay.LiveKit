@@ -2,27 +2,20 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 
-namespace Extreal.Integration.Multiplay.LiveKit
+namespace Extreal.Integration.Multiplay.Common
 {
     public enum MultiplayMessageCommand
     {
         None,
-        Join,
         Create,
         Update,
-        UserConnected,//serverは気にしなくてよい
-        Message,//serverは気にしなくてよい
+        UserConnected,
+        Message,
     };
 
     [Serializable]
     public class MultiplayMessage
     {
-        public string UserIdentity => userIdentity;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private string userIdentity;
-
-        public string Topic => topic;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private string topic;
-
         public MultiplayMessageCommand MultiplayMessageCommand => multiplayMessageCommand;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private MultiplayMessageCommand multiplayMessageCommand;
 
@@ -37,16 +30,12 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
         public MultiplayMessage
         (
-            string userIdentity,
-            string topic,
             MultiplayMessageCommand multiplayMessageCommand,
             NetworkObjectInfo networkObjectInfo = default,
             NetworkObjectInfo[] networkObjectInfos = default,
             string message = default
         )
         {
-            this.userIdentity = userIdentity;
-            this.topic = topic;
             this.multiplayMessageCommand = multiplayMessageCommand;
             this.networkObjectInfo = networkObjectInfo;
             this.networkObjectInfos = networkObjectInfos;

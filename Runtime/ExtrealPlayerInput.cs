@@ -1,12 +1,12 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace Extreal.Integration.Multiplay.LiveKit
+namespace Extreal.Integration.Multiplay.Common
 {
-    public class LiveKitPlayerInput : MonoBehaviour
+    public class ExtrealPlayerInput : MonoBehaviour
     {
-        public virtual MultiplayPlayerInputValues Values => values;
-        private MultiplayPlayerInputValues values;
+        public virtual ExtrealPlayerInputValues Values => values;
+        private ExtrealPlayerInputValues values;
 
         public Vector2 Look => look;
         private Vector2 look;
@@ -23,7 +23,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public void LookInput(Vector2 newLookDirection)
             => look = newLookDirection;
 
-        public virtual void SetValues(MultiplayPlayerInputValues values)
+        public virtual void SetValues(ExtrealPlayerInputValues values)
             => MoveInput(values.Move);
     }
 }

@@ -2,7 +2,7 @@ using UnityEngine;
 using System;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Extreal.Integration.Multiplay.LiveKit
+namespace Extreal.Integration.Multiplay.Common
 {
     [Serializable]
     public class NetworkObjectInfo : ISerializationCallbackReceiver
@@ -25,7 +25,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public DateTime UpdatedAt { get; private set; }
         [SerializeField] private long updatedAt;
 
-        private MultiplayPlayerInputValues values;
+        private ExtrealPlayerInputValues values;
         [SerializeField] private string jsonOfValues;
 
         public NetworkObjectInfo(int instanceId, Vector3 position, Quaternion rotation)
@@ -69,7 +69,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             rotation = transform.rotation;
         }
 
-        public void ApplyValuesTo(in LiveKitPlayerInput input)
+        public void ApplyValuesTo(in ExtrealPlayerInput input)
         {
             if (string.IsNullOrEmpty(jsonOfValues))
             {
@@ -77,11 +77,11 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
 
             var typeOfValues = input.GetType();
-            values = JsonUtility.FromJson(jsonOfValues, typeOfValues) as MultiplayPlayerInputValues;
+            values = JsonUtility.FromJson(jsonOfValues, typeOfValues) as ExtrealPlayerInputValues;
             input.SetValues(values);
         }
 
-        public void GetValuesFrom(in LiveKitPlayerInput input)
+        public void GetValuesFrom(in ExtrealPlayerInput input)
             => values = input.Values;
     }
 }

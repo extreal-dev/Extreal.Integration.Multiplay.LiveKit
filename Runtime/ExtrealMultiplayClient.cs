@@ -7,9 +7,9 @@ using System.Linq;
 using UniRx;
 using UnityEngine;
 
-namespace Extreal.Integration.Multiplay.LiveKit
+namespace Extreal.Integration.Multiplay.Common
 {
-    public class PubSubMultiplayClient : MonoBehaviour
+    public class ExtrealMultiplayClient : MonoBehaviour
     {
         [SerializeField] private GameObject playerObject;
         [SerializeField] private GameObject[] networkObjects;
@@ -37,9 +37,9 @@ namespace Extreal.Integration.Multiplay.LiveKit
         private readonly Dictionary<int, GameObject> networkObjectPrefabs = new Dictionary<int, GameObject>();
 
         [SuppressMessage("Usage", "CC0033")]
-        private readonly NativeMultiplayTransport transport = new NativeMultiplayTransport();
+        private IExtrealMultiplayTransport transport;
 
-        private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(PubSubMultiplayClient));
+        private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(ExtrealMultiplayClient));
 
         public void Awake()
             => Initialize();
@@ -52,7 +52,16 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
 
             onObjectSpawned.AddTo(this);
-            transport.AddTo(this);
+
+            AddToNetworkObjectPrefabs(playerObject);
+            Array.ForEach(networkObjects, AddToNetworkObjectPrefabs);
+
+            DontDestroyOnLoad(this);
+        }
+
+        public void SetTransport(IExtrealMultiplayTransport transport)
+        {
+            this.transport = transport.AddTo(this);
 
             transport.OnConnected.Subscribe(userIdentity =>
             {
@@ -73,7 +82,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
                     connectedClients[userIdentityRemote] = new NetworkClient(userIdentityRemote);
 
                     var networkObjectInfos = localNetworkObjectInfos.Values.ToArray();
-                    var message = new MultiplayMessage(userIdentityRemote, Topic, MultiplayMessageCommand.UserConnected, networkObjectInfos: networkObjectInfos);
+                    var message = new MultiplayMessage(MultiplayMessageCommand.UserConnected, networkObjectInfos: networkObjectInfos);
                     transport.EnqueueRequest(message);
                 });
 
@@ -92,11 +101,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
                     }
                     connectedClients.Remove(userIdentityRemote);
                 });
-
-            AddToNetworkObjectPrefabs(playerObject);
-            Array.ForEach(networkObjects, AddToNetworkObjectPrefabs);
-
-            DontDestroyOnLoad(this);
         }
 
         private void AddToNetworkObjectPrefabs(GameObject go)
@@ -134,7 +138,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 var localGameObject = networkGameObjects[guid];
                 networkObjectInfo.GetTransformFrom(localGameObject.transform);
 
-                if (localGameObject.TryGetComponent(out LiveKitPlayerInput input))
+                if (localGameObject.TryGetComponent(out ExtrealPlayerInput input))
                 {
                     networkObjectInfo.GetValuesFrom(in input);
                 }
@@ -143,7 +147,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
             if (localNetworkObjectInfos.Count > 0)
             {
-                var message = new MultiplayMessage(LocalClient.UserIdentity, Topic, MultiplayMessageCommand.Update, networkObjectInfos: localNetworkObjectInfos.Values.ToArray());
+                var message = new MultiplayMessage(MultiplayMessageCommand.Update, networkObjectInfos: localNetworkObjectInfos.Values.ToArray());
                 transport.EnqueueRequest(message);
             }
 
@@ -208,7 +212,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         {
             if (networkGameObjects.TryGetValue(obj.ObjectGuid, out var objectToBeUpdated))
             {
-                if (objectToBeUpdated.TryGetComponent(out LiveKitPlayerInput input))
+                if (objectToBeUpdated.TryGetComponent(out ExtrealPlayerInput input))
                 {
                     obj.ApplyValuesTo(in input);
                 }
@@ -221,10 +225,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
         }
 
-        public void Initialize(TransportConfig transportConfig = default)
-            => transport.Initialize(transportConfig);
-
-        public async UniTask ConnectAsync(ConnectionConfig connectionConfig)
+        public async UniTask ConnectAsync(MultiplayConnectionConfig connectionConfig)
         {
             if (transport.IsConnected)
             {
@@ -235,10 +236,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 return;
             }
 
-            if (Logger.IsDebug())
-            {
-                Logger.LogDebug($"Connect: url={connectionConfig.Url}");
-            }
             await transport.ConnectAsync(connectionConfig);
         }
 
@@ -249,7 +246,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 Logger.LogDebug(nameof(Disconnect));
             }
 
-            transport.DisconnectAsync();
+            transport.Disconnect();
         }
 
         public UniTask DeleteRoomAsync()
@@ -295,7 +292,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             if (userIdentity == LocalClient.UserIdentity)
             {
                 localNetworkObjectInfos.Add(networkObjectInfo.ObjectGuid, networkObjectInfo);
-                var message = new MultiplayMessage(userIdentity, Topic, MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo);
+                var message = new MultiplayMessage(MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo);
                 transport.EnqueueRequest(message);
             }
 
@@ -304,22 +301,10 @@ namespace Extreal.Integration.Multiplay.LiveKit
             return spawnedObject;
         }
 
-        public void SendMessage(string userIdentity, string message)
-            => transport.EnqueueRequest(new MultiplayMessage(userIdentity, Topic, MultiplayMessageCommand.Message, message: message));
+        public new void SendMessage(string message)
+            => transport.EnqueueRequest(new MultiplayMessage(MultiplayMessageCommand.Message, message: message));
 
-        public UniTask<RoomInfo[]> ListRoomsAsync()
+        public UniTask<MultiplayRoomInfo[]> ListRoomsAsync()
             => transport.ListRoomsAsync();
     }
-
-#if !UNITY_WEBGL || UNITY_EDITOR
-    public class LiveKitMultiplayTransport : NativeMultiplayTransport
-    {
-        public LiveKitMultiplayTransport() : base() { }
-    }
-#else
-    public class LiveKitMultiplayTransport : WebGLMultiplayTransport
-    {
-        public LiveKitMultiplayTransport() : base() { }
-    };
-#endif
 }

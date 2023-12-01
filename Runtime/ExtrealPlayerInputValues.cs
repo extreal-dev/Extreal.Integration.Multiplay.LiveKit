@@ -1,10 +1,10 @@
 using System;
 using UnityEngine;
 
-namespace Extreal.Integration.Multiplay.LiveKit
+namespace Extreal.Integration.Multiplay.Common
 {
     [Serializable]
-    public class MultiplayPlayerInputValues
+    public class ExtrealPlayerInputValues
     {
         public Vector2 Move => move;
         [SerializeField] private Vector2 move;
