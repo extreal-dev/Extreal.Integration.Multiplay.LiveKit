@@ -103,12 +103,14 @@ const MultiplayMessageCommand = {
     Join: 1,
     Create: 2,
     Update: 3,
-    Delete: 4
+    UserConnected: 4,
+    Message: 5,
+    Delete: 11
 };
 
 type MultiplayMessageCommand = (typeof MultiplayMessageCommand)[keyof typeof MultiplayMessageCommand];
 
-class Message {
+class MultiplayMessage {
     userIdentity: string;
     topic: string;
     multiplayMessageCommand: MultiplayMessageCommand;
@@ -159,10 +161,11 @@ io.on('connection', async (socket: Socket) => {
     //　サーバでuse識別子を作成しｍ、各clientに返す
     // messageイベントリスナ
     socket.on('message', async (msg: string) => {
-        const msgObj: Message = JSON.parse(msg) as Message;
+        const msgObj: MultiplayMessage = JSON.parse(msg) as MultiplayMessage;
+        const roomName = msgObj.topic;
         // ルームに加入する場合(初回の接続)
         if (msgObj.multiplayMessageCommand === MultiplayMessageCommand.Join) {
-            const roomName = msgObj.topic;
+
             console.log('Join[%s] Room: %s', socket.id, msgObj.userIdentity, roomName);
 
             await socket.join(roomName); // ルームへ加入
@@ -174,36 +177,35 @@ io.on('connection', async (socket: Socket) => {
 
         // console.log('message: %o', msgObj);
         if (msgObj.multiplayMessageCommand === MultiplayMessageCommand.Create) {
-            const roomName = msgObj.topic;
-            console.log('Join[%s] Room: %s', socket.id, roomName);
-
-            // すでにルームへ参加しているユーザの生成情報を，接続したクライアントに通知
-            const clients = io.sockets.adapter.rooms.get(roomName);
-            if (clients !== undefined) {
-                for (const c of clients) {
-                    const v = await redisClient.get(c);
-                    console.log('Notify Spawn existing client: %o, %o', c, v);
-                    if (v !== null) {
-                        const newObj: Message = JSON.parse(v) as Message;
-                        newObj.multiplayMessageCommand = MultiplayMessageCommand.Create;
-                        const jsonStr = JSON.stringify(newObj);
-                        io.to(socket.id).emit('message', jsonStr);
-                    }
-                }
-            } else {
-                console.log('No clients');
-            }
-        } else if (msgObj.multiplayMessageCommand === MultiplayMessageCommand.Update) {
+            // ルーム内の他の参加者へメッセージを送信
+            console.log('Create[%s] : %s', socket.id, msgObj);
+            io.to(roomName).emit('message', msg);
+        } 
+        
+        if (msgObj.multiplayMessageCommand === MultiplayMessageCommand.Update) {
             // ルーム内の他の参加者へメッセージを送信
             await redisClient.set(socket.id.toString(), msg);
-            io.to(msgObj.topic).emit('onRoomMessage', msg);
-        } else if (msgObj.multiplayMessageCommand === MultiplayMessageCommand.Delete) {
-            // ルームから離脱
-        } else {
-            console.log('Unknown Command: %o', msgObj.multiplayMessageCommand);
-            console.log('message is: %o', msgObj);
-            return;
+            io.to(roomName).emit('message', msg);
         }
+
+        if (msgObj.multiplayMessageCommand === MultiplayMessageCommand.UserConnected) {
+            // ルーム内の他の参加者へメッセージを送信
+            await redisClient.set(socket.id.toString(), msg);
+            io.to(roomName).emit('message', msg);
+        } 
+
+        if (msgObj.multiplayMessageCommand === MultiplayMessageCommand.Message) {
+            // ルーム内の他の参加者へメッセージを送信
+            await redisClient.set(socket.id.toString(), msg);
+            io.to(roomName).emit('message', msg);
+        } 
+        
+        if (msgObj.multiplayMessageCommand !== MultiplayMessageCommand.Update) {
+            console.log('message is: %o', msgObj);
+        }
+
+        return;
+        
     });
 
     // 切断前に，ルームから退出したことを他の参加者に通知
@@ -214,7 +216,7 @@ io.on('connection', async (socket: Socket) => {
 
         const msg = await redisClient.get(socket.id.toString());
         if (msg === null) return;
-        const newObj: Message = JSON.parse(msg) as Message;
+        const newObj: MultiplayMessage = JSON.parse(msg) as MultiplayMessage;
         newObj.multiplayMessageCommand = MultiplayMessageCommand.Delete;
         const jsonStr = JSON.stringify(newObj);
 

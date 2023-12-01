@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 
 namespace Extreal.Integration.Multiplay.LiveKit
 {
-    public class LiveKitPlayerInput : MonoBehaviour
+    public class RedisPlayerInput : MonoBehaviour
     {
         public virtual MultiplayPlayerInputValues Values => values;
         private MultiplayPlayerInputValues values;

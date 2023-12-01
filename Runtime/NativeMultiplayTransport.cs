@@ -85,8 +85,9 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
         private void UserDisconnectingEventHandler(SocketIOResponse response) => throw new NotImplementedException();
 
-        private void ConnectedEventHandler(object sender, EventArgs e)
+        private async void ConnectedEventHandler(object sender, EventArgs e)
         {
+            await UniTask.SwitchToMainThread();
             IsConnected = true;
             userIdentity = Guid.NewGuid().ToString();
             var message = new MultiplayMessage(userIdentity, roomName, MultiplayMessageCommand.Join);
@@ -148,7 +149,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         {
             if (connectionConfig is not RedisConnectionConfig redisConnectionConfig)
             {
-                throw new ArgumentException("Expect LiveKitConnectionConfig", nameof(connectionConfig));
+                throw new ArgumentException("Expect RedisConnectionConfig", nameof(connectionConfig));
             }
 
             if (Logger.IsDebug())
@@ -186,24 +187,27 @@ namespace Extreal.Integration.Multiplay.LiveKit
             roomName = string.Empty;
         }
 
-        private void DisconnectedEventHandler(object sender, string e)
+        private async void DisconnectedEventHandler(object sender, string e)
         {
+            await UniTask.SwitchToMainThread();
             onUnexpectedDisconnected.OnNext(e);
         }
 
-        private void UserConnectedEventHandler(SocketIOResponse response)
+        private async void UserConnectedEventHandler(SocketIOResponse response)
         {
+            await UniTask.SwitchToMainThread();
             var jsonStr = response.GetValue<string>();
             var message = JsonUtility.FromJson<MultiplayMessage>(jsonStr);
             onUserConnected.OnNext(message.NetworkObjectInfo.ObjectGuid.ToString());
         }
 
-        private void MessageReceivedEventHandler(SocketIOResponse response)
+        private async void MessageReceivedEventHandler(SocketIOResponse response)
         {
+            await UniTask.SwitchToMainThread();
             var dataStr = response.GetValue<string>();
             var message = JsonUtility.FromJson<MultiplayMessage>(dataStr);
-
-            responseQueue.Enqueue(("message", message));
+            onMessageReceived.OnNext((message.UserIdentity, dataStr));
+            responseQueue.Enqueue((message.UserIdentity, message));
         }
 
         [Serializable]

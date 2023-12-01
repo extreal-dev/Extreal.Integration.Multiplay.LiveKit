@@ -69,7 +69,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             rotation = transform.rotation;
         }
 
-        public void ApplyValuesTo(in LiveKitPlayerInput input)
+        public void ApplyValuesTo(in RedisPlayerInput input)
         {
             if (string.IsNullOrEmpty(jsonOfValues))
             {
@@ -81,7 +81,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             input.SetValues(values);
         }
 
-        public void GetValuesFrom(in LiveKitPlayerInput input)
+        public void GetValuesFrom(in RedisPlayerInput input)
             => values = input.Values;
     }
 }

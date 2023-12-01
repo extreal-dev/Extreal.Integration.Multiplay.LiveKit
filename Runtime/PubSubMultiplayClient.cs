@@ -50,7 +50,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
             {
                 Logger.LogDebug(nameof(Initialize));
             }
-
+            Debug.LogWarning(playerObject);
+            Logger.LogDebug("!!!!!!!!Debug.LogWarning(playerObject);");
             onObjectSpawned.AddTo(this);
             transport.AddTo(this);
 
@@ -134,7 +135,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 var localGameObject = networkGameObjects[guid];
                 networkObjectInfo.GetTransformFrom(localGameObject.transform);
 
-                if (localGameObject.TryGetComponent(out LiveKitPlayerInput input))
+                if (localGameObject.TryGetComponent(out RedisPlayerInput input))
                 {
                     networkObjectInfo.GetValuesFrom(in input);
                 }
@@ -208,7 +209,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         {
             if (networkGameObjects.TryGetValue(obj.ObjectGuid, out var objectToBeUpdated))
             {
-                if (objectToBeUpdated.TryGetComponent(out LiveKitPlayerInput input))
+                if (objectToBeUpdated.TryGetComponent(out RedisPlayerInput input))
                 {
                     obj.ApplyValuesTo(in input);
                 }
@@ -258,12 +259,19 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public GameObject SpawnPlayer(Vector3 position = default, Quaternion rotation = default, Transform parent = default)
         {
             Logger.LogDebug("!!! IN SpawnPlayer");
+            Debug.LogWarning(playerObject.name);
+            Debug.LogWarning(playerObject == null);
+            Debug.LogWarning($"!!! IN SpawnPlayer playerObject is {playerObject}");
+            var instanceId = playerObject.GetInstanceID();
+            Logger.LogDebug($"!!! IN SpawnPlayer instanceId is {instanceId}");
             if (playerObject == null)
             {
                 throw new InvalidOperationException("Add an object to use as player to the playerObject of this instance");
             }
+            Logger.LogDebug($"!!! IN SpawnPlayer Before NetworkObjectInfo");
 
             var networkObjectInfo = new NetworkObjectInfo(playerObject.GetInstanceID(), position, rotation);
+            Logger.LogDebug($"!!! IN SpawnPlayer LocalClient is: id={LocalClient.UserIdentity} instanceId={LocalClient.PlayerObject}");
             return SpawnInternal(playerObject, networkObjectInfo, LocalClient.SetPlayerObject, LocalClient.UserIdentity, parent);
         }
 
