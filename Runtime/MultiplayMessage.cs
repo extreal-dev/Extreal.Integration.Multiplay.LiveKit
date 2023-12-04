@@ -8,10 +8,11 @@ namespace Extreal.Integration.Multiplay.LiveKit
     {
         None,
         Join,
+        AvatarName,
         Create,
         Update,
-        UserConnected,//serverは気にしなくてよい
-        Message,//serverは気にしなくてよい
+        UserConnected,
+        Message,
     };
 
     [Serializable]
@@ -32,6 +33,9 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public NetworkObjectInfo[] NetworkObjectInfos => networkObjectInfos;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo[] networkObjectInfos;
 
+        // public string AvatarName => avatarName;
+        // [SerializeField, SuppressMessage("Usage", "CC0052")] private string avatarName;
+
         public string Message => message;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private string message;
 
@@ -42,6 +46,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             MultiplayMessageCommand multiplayMessageCommand,
             NetworkObjectInfo networkObjectInfo = default,
             NetworkObjectInfo[] networkObjectInfos = default,
+            // string avatarName = default,
             string message = default
         )
         {
@@ -50,6 +55,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             this.multiplayMessageCommand = multiplayMessageCommand;
             this.networkObjectInfo = networkObjectInfo;
             this.networkObjectInfos = networkObjectInfos;
+            // this.avatarName = avatarName;
             this.message = message;
         }
 

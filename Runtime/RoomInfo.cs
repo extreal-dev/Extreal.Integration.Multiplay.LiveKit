@@ -10,6 +10,13 @@ namespace Extreal.Integration.Multiplay.LiveKit
         [SerializeField] private string id;
 
         public string Name => name;
+
         [SerializeField] private string name;
+
+        public RoomInfo(string id, string name)
+        {
+            this.id = id;
+            this.name = name;
+        }
     }
 }

@@ -18,7 +18,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
     public class NativeMultiplayTransport : DisposableBase
     {
         public bool IsConnected { get; private set; }
-        public List<string> ConnectedParticipants => new List<string>();
+        public List<string> ConnectedUserIdentities => new List<string>();
 
         public IObservable<string> OnConnected => onConnected;
         private readonly Subject<string> onConnected;
@@ -44,7 +44,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         private SocketIO ioClient;
         private string relayServerUrl = "http://localhost:3030";
         private string roomName;
-        private string userIdentity;
+        private string userIdentityLocal;
 
         private readonly Queue<MultiplayMessage> requestQueue = new Queue<MultiplayMessage>();
         private readonly Queue<(string, MultiplayMessage)> responseQueue = new Queue<(string, MultiplayMessage)>();
@@ -89,12 +89,11 @@ namespace Extreal.Integration.Multiplay.LiveKit
         {
             await UniTask.SwitchToMainThread();
             IsConnected = true;
-            userIdentity = Guid.NewGuid().ToString();
-            var message = new MultiplayMessage(userIdentity, roomName, MultiplayMessageCommand.Join);
-            Logger.LogDebug("!!!Before ConnectedEventHandler SendMessageAsync");
-            SendMessageAsync(message.ToJson()).Forget();
-            onConnected.OnNext(userIdentity);
-            Logger.LogDebug("!!!After ConnectedEventHandler SendMessageAsync");
+            userIdentityLocal = ioClient.Id;
+            ConnectedUserIdentities.Add(userIdentityLocal);
+            var message = new MultiplayMessage(userIdentityLocal, roomName, MultiplayMessageCommand.Join);
+            _ = SendMessageAsync(message.ToJson());
+            onConnected.OnNext(userIdentityLocal);
         }
 
         protected override void ReleaseManagedResources()
@@ -138,11 +137,18 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
         public async UniTask<RoomInfo[]> ListRoomsAsync()
         {
-            using var uwr = UnityWebRequest.Get($"{relayServerUrl}/listRooms");
-            await uwr.SendWebRequest();
+            var rooms = new RoomInfo[]
+            {
+                new RoomInfo("1", "aaa"),
+                new RoomInfo("2", "bbb")
+            };
 
-            var roomList = JsonUtility.FromJson<RoomList>(uwr.downloadHandler.text);
-            return roomList.Rooms;
+            // using var uwr = UnityWebRequest.Get($"{relayServerUrl}/listRooms");
+            // await uwr.SendWebRequest();
+
+            // var roomList = JsonUtility.FromJson<RoomList>(uwr.downloadHandler.text);
+            // return roomList.Rooms;
+            return rooms;
         }
 
         public async UniTask ConnectAsync(ConnectionConfig connectionConfig)
@@ -198,7 +204,10 @@ namespace Extreal.Integration.Multiplay.LiveKit
             await UniTask.SwitchToMainThread();
             var jsonStr = response.GetValue<string>();
             var message = JsonUtility.FromJson<MultiplayMessage>(jsonStr);
-            onUserConnected.OnNext(message.NetworkObjectInfo.ObjectGuid.ToString());
+            var userIdentityRemote = message.UserIdentity;
+            ConnectedUserIdentities.Add(userIdentityRemote);
+            Debug.LogWarning($"### UserConnectedEventHandler IN: {userIdentityRemote}");
+            onUserConnected.OnNext(userIdentityRemote);
         }
 
         private async void MessageReceivedEventHandler(SocketIOResponse response)
@@ -206,8 +215,13 @@ namespace Extreal.Integration.Multiplay.LiveKit
             await UniTask.SwitchToMainThread();
             var dataStr = response.GetValue<string>();
             var message = JsonUtility.FromJson<MultiplayMessage>(dataStr);
-            onMessageReceived.OnNext((message.UserIdentity, dataStr));
-            responseQueue.Enqueue((message.UserIdentity, message));
+            var userIdentityRemote = message.UserIdentity;
+            if (message.MultiplayMessageCommand is MultiplayMessageCommand.AvatarName or MultiplayMessageCommand.Message)
+            {
+                onMessageReceived.OnNext((userIdentityRemote, dataStr));
+            }
+
+            responseQueue.Enqueue((userIdentityRemote, message));
         }
 
         [Serializable]

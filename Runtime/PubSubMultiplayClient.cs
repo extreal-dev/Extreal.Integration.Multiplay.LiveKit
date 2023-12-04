@@ -16,7 +16,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
         public NetworkClient LocalClient { get; private set; }
 
-        public string Topic { get; private set; }
+        public string Topic { get; set; }
         public IReadOnlyDictionary<string, NetworkClient> ConnectedClients => connectedClients;
         private readonly Dictionary<string, NetworkClient> connectedClients = new Dictionary<string, NetworkClient>();
 
@@ -31,7 +31,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         private readonly Subject<(string, GameObject)> onObjectSpawned = new Subject<(string, GameObject)>();
         public IObservable<(string userIdentityRemote, string message)> OnMessageReceived => transport.OnMessageReceived;
 
-        private readonly Dictionary<Guid, NetworkObjectInfo> localNetworkObjectInfos = new Dictionary<Guid, NetworkObjectInfo>();
+        private readonly Dictionary<Guid, NetworkObjectInfo> localNetworkObjectInfoDic = new Dictionary<Guid, NetworkObjectInfo>();
         private readonly Dictionary<Guid, GameObject> networkGameObjects = new Dictionary<Guid, GameObject>();
 
         private readonly Dictionary<int, GameObject> networkObjectPrefabs = new Dictionary<int, GameObject>();
@@ -50,16 +50,14 @@ namespace Extreal.Integration.Multiplay.LiveKit
             {
                 Logger.LogDebug(nameof(Initialize));
             }
-            Debug.LogWarning(playerObject);
-            Logger.LogDebug("!!!!!!!!Debug.LogWarning(playerObject);");
             onObjectSpawned.AddTo(this);
             transport.AddTo(this);
 
-            transport.OnConnected.Subscribe(userIdentity =>
+            transport.OnConnected.Subscribe(userIdentityLocal =>
             {
-                Logger.LogDebug("!!!transport.OnConnected");
-                LocalClient = new NetworkClient(userIdentity);
-                connectedClients[userIdentity] = LocalClient;
+                LocalClient = new NetworkClient(userIdentityLocal);
+                // localNetworkObjectInfos[userIdentityLocal] = new NetworkObjectInfo();
+                connectedClients[userIdentityLocal] = LocalClient;
             });
 
             transport.OnDisconnecting
@@ -73,8 +71,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 {
                     connectedClients[userIdentityRemote] = new NetworkClient(userIdentityRemote);
 
-                    var networkObjectInfos = localNetworkObjectInfos.Values.ToArray();
-                    var message = new MultiplayMessage(userIdentityRemote, Topic, MultiplayMessageCommand.UserConnected, networkObjectInfos: networkObjectInfos);
+                    var networkObjectInfos = localNetworkObjectInfoDic.Values.ToArray();
+                    var message = new MultiplayMessage(LocalClient.UserIdentity, Topic, MultiplayMessageCommand.UserConnected, networkObjectInfos: networkObjectInfos);
                     transport.EnqueueRequest(message);
                 });
 
@@ -106,8 +104,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
             {
                 return;
             }
-            var instanceId = go.GetInstanceID();
-            networkObjectPrefabs.Add(instanceId, go);
+            var selfInstanceId = Utility.GetGameObjectHash(go);
+            networkObjectPrefabs.Add(selfInstanceId, go);
         }
 
         private void Clear()
@@ -119,7 +117,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
             LocalClient = null;
             connectedClients.Clear();
-            localNetworkObjectInfos.Clear();
+            localNetworkObjectInfoDic.Clear();
             networkGameObjects.Clear();
         }
 
@@ -130,7 +128,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 return;
             }
 
-            foreach ((var guid, var networkObjectInfo) in localNetworkObjectInfos)
+            foreach ((var guid, var networkObjectInfo) in localNetworkObjectInfoDic)
             {
                 var localGameObject = networkGameObjects[guid];
                 networkObjectInfo.GetTransformFrom(localGameObject.transform);
@@ -142,9 +140,9 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
                 networkObjectInfo.Updated();
             }
-            if (localNetworkObjectInfos.Count > 0)
+            if (localNetworkObjectInfoDic.Count > 0)
             {
-                var message = new MultiplayMessage(LocalClient.UserIdentity, Topic, MultiplayMessageCommand.Update, networkObjectInfos: localNetworkObjectInfos.Values.ToArray());
+                var message = new MultiplayMessage(LocalClient.UserIdentity, Topic, MultiplayMessageCommand.Update, networkObjectInfos: localNetworkObjectInfoDic.Values.ToArray());
                 transport.EnqueueRequest(message);
             }
 
@@ -156,13 +154,14 @@ namespace Extreal.Integration.Multiplay.LiveKit
                     continue;
                 }
 
-                if (localNetworkObjectInfos.ContainsKey(message.NetworkObjectInfo.ObjectGuid))
+                if (localNetworkObjectInfoDic.ContainsKey(message.NetworkObjectInfo.ObjectGuid))
                 {
                     continue;
                 }
 
                 if (message.MultiplayMessageCommand is MultiplayMessageCommand.Create)
                 {
+                    Debug.LogWarning($"### CreatePlayer for remoteUser: {userIdentityRemote}");
                     CreateObject(userIdentityRemote, message.NetworkObjectInfo);
                 }
                 else if (message.MultiplayMessageCommand is MultiplayMessageCommand.Update)
@@ -187,6 +186,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
         private void CreateObject(string userIdentity, NetworkObjectInfo networkObjectInfo)
         {
+            Debug.LogWarning($"### CreateObject IN because: {userIdentity}");
             var instanceId = networkObjectInfo.InstanceId;
             if (Logger.IsDebug())
             {
@@ -258,20 +258,15 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
         public GameObject SpawnPlayer(Vector3 position = default, Quaternion rotation = default, Transform parent = default)
         {
-            Logger.LogDebug("!!! IN SpawnPlayer");
-            Debug.LogWarning(playerObject.name);
-            Debug.LogWarning(playerObject == null);
-            Debug.LogWarning($"!!! IN SpawnPlayer playerObject is {playerObject}");
-            var instanceId = playerObject.GetInstanceID();
-            Logger.LogDebug($"!!! IN SpawnPlayer instanceId is {instanceId}");
+            var selfInstanceId = 1111;
+            // var selfInstanceId = Utility.GetGameObjectHash(playerObject);
+            // var instanceId = playerObject.GetInstanceID();
             if (playerObject == null)
             {
                 throw new InvalidOperationException("Add an object to use as player to the playerObject of this instance");
             }
-            Logger.LogDebug($"!!! IN SpawnPlayer Before NetworkObjectInfo");
 
-            var networkObjectInfo = new NetworkObjectInfo(playerObject.GetInstanceID(), position, rotation);
-            Logger.LogDebug($"!!! IN SpawnPlayer LocalClient is: id={LocalClient.UserIdentity} instanceId={LocalClient.PlayerObject}");
+            var networkObjectInfo = new NetworkObjectInfo(selfInstanceId, position, rotation);
             return SpawnInternal(playerObject, networkObjectInfo, LocalClient.SetPlayerObject, LocalClient.UserIdentity, parent);
         }
 
@@ -295,25 +290,23 @@ namespace Extreal.Integration.Multiplay.LiveKit
             Transform parent = default
         )
         {
-            Logger.LogDebug("!!! IN SpawnInternal");
             var spawnedObject = Instantiate(prefab, networkObjectInfo.Position, networkObjectInfo.Rotation, parent);
             setToNetworkClient?.Invoke(spawnedObject);
             networkGameObjects.Add(networkObjectInfo.ObjectGuid, spawnedObject);
 
             if (userIdentity == LocalClient.UserIdentity)
             {
-                localNetworkObjectInfos.Add(networkObjectInfo.ObjectGuid, networkObjectInfo);
+                localNetworkObjectInfoDic.Add(networkObjectInfo.ObjectGuid, networkObjectInfo);
                 var message = new MultiplayMessage(userIdentity, Topic, MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo);
                 transport.EnqueueRequest(message);
             }
 
             onObjectSpawned.OnNext((userIdentity, spawnedObject));
-            Logger.LogDebug("!!! After SpawnInternal");
             return spawnedObject;
         }
 
-        public void SendMessage(string userIdentity, string message)
-            => transport.EnqueueRequest(new MultiplayMessage(userIdentity, Topic, MultiplayMessageCommand.Message, message: message));
+        public void SendMessage(string userIdentityLocal, string message, MultiplayMessageCommand command = MultiplayMessageCommand.Message)
+            => transport.EnqueueRequest(new MultiplayMessage(userIdentityLocal, Topic, command, message: message));
 
         public UniTask<RoomInfo[]> ListRoomsAsync()
             => transport.ListRoomsAsync();

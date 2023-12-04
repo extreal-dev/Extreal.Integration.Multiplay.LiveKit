@@ -33,6 +33,30 @@ app.get('/metrics', async (req, res) => {
     res.send(metrics);
 });
 
+// app.get("/listRooms", (_, res) => {
+
+//             res.json({
+//                 rooms: socket.rooms.map((room) => room.name),
+//             });
+    
+// });
+
+// app.get("/deleteRoom", (req, res) => {
+//     const roomName = req.query.RoomName;
+//     roomService
+//         .deleteRoom(roomName)
+//         .then(() => {
+//             res.json({
+//                 roomName: roomName,
+//             });
+//         })
+//         .catch((reason) => {
+//             res.status(400).json({
+//                 message: reason,
+//             });
+//         });
+// });
+
 const httpServer = createServer(app);
 
 class Vector3 {
@@ -101,10 +125,11 @@ class MultiplayPlayerInputValues {
 const MultiplayMessageCommand = {
     None: 0,
     Join: 1,
-    Create: 2,
-    Update: 3,
-    UserConnected: 4,
-    Message: 5,
+    AvatarName: 2,
+    Create: 3,
+    Update: 4,
+    UserConnected: 5,
+    Message: 6,
     Delete: 11
 };
 
@@ -156,53 +181,93 @@ subClient.on('error', (err) => {
 });
 io.adapter(createAdapter(pubClient, subClient)); // redis-adapter
 
+let userAvatars = new Map<string, string>();
 io.on('connection', async (socket: Socket) => {
-    // memo:この時に、ルームにいるひとにuser connectedの emit("user connected", "use識別子がはいったmessage")
-    //　サーバでuse識別子を作成しｍ、各clientに返す
     // messageイベントリスナ
     socket.on('message', async (msg: string) => {
         const msgObj: MultiplayMessage = JSON.parse(msg) as MultiplayMessage;
         const roomName = msgObj.topic;
         // ルームに加入する場合(初回の接続)
         if (msgObj.multiplayMessageCommand === MultiplayMessageCommand.Join) {
-
-            console.log('Join[%s] Room: %s', socket.id, msgObj.userIdentity, roomName);
-
+            console.log('---Join         , id[%s] : Room[%s]', msgObj.userIdentity, msgObj.topic);
             await socket.join(roomName); // ルームへ加入
-            // 状態を保存
-            await redisClient.set(socket.id.toString(), msg);
-            // ルームにいるクライアントにユーザが参加したことを通知
-            io.to(roomName).emit('user connected', msg);
+            // ルームにいる他のクライアントにユーザが参加したことを通知
+            socket.to(roomName).emit('user connected', msg);
         }
 
         // console.log('message: %o', msgObj);
         if (msgObj.multiplayMessageCommand === MultiplayMessageCommand.Create) {
             // ルーム内の他の参加者へメッセージを送信
-            console.log('Create[%s] : %s', socket.id, msgObj);
-            io.to(roomName).emit('message', msg);
+            console.log('---Create       , id[%s] : Room[%s]', msgObj.userIdentity, msgObj.topic);
+            // 状態を保存
+            await redisClient.set(socket.id.toString(), msg);
+            // すでにルームへ参加しているユーザの生成情報を，接続したクライアントに通知
+            const clients = io.sockets.adapter.rooms.get(roomName);
+            if (clients !== undefined) {
+                for (const c of clients) {
+                    const v = await redisClient.get(c);
+                    console.log('Notify Spawn for existing client: %o, %o', c, v);
+                    if (v !== null) {
+                        const newObj: MultiplayMessage = JSON.parse(v) as MultiplayMessage;
+                        newObj.multiplayMessageCommand = MultiplayMessageCommand.Create;
+                        const jsonStr = JSON.stringify(newObj);
+                        socket.to(socket.id).emit('message', jsonStr);
+                    }
+                }
+            } else {
+                console.log('No clients');
+            }
         } 
+
+        // ======Avatar設定
+        if (msgObj.multiplayMessageCommand === MultiplayMessageCommand.AvatarName) {
+
+            console.log('---AvatarName   , id[%s] : Room[%s]', msgObj.userIdentity, msgObj.topic);
+
+            const userIdentity = socket.id.toString();
+            const AvatarName = msgObj.message;
+            userAvatars.set(userIdentity, AvatarName);
+
+            const connectedClients = io.sockets.adapter.rooms.get(roomName);
+            if (connectedClients !== undefined) {
+                for (const clientSocketId of connectedClients) {
+                    if (clientSocketId === userIdentity) return;
+                    const msgAvatarName = userAvatars.get(clientSocketId);
+                    const currentMsgJson = await redisClient.get(clientSocketId);
+                    console.log('Notify AvatarName for existing client : %o, %o', clientSocketId, msgAvatarName);
+                    if (currentMsgJson !== null && msgAvatarName !== undefined) {
+                        const msg: MultiplayMessage = JSON.parse(currentMsgJson) as MultiplayMessage;
+                        msg.multiplayMessageCommand = MultiplayMessageCommand.AvatarName;
+                        msg.message = msgAvatarName;
+                        io.to(socket.id).emit('message', JSON.stringify(msg));
+                    }
+                }
+            } else {
+                console.log('No clients: MultiplayMessageCommand.AvatarName');
+            }
+            // ルームにいる他のクライアントにユーザが参加したことを通知
+            socket.to(roomName).emit('user connected', msg);
+        }
         
         if (msgObj.multiplayMessageCommand === MultiplayMessageCommand.Update) {
             // ルーム内の他の参加者へメッセージを送信
+            // console.log('Update, id[%s] : Room[%s]', msgObj.userIdentity, msgObj.topic);
             await redisClient.set(socket.id.toString(), msg);
-            io.to(roomName).emit('message', msg);
+            socket.to(roomName).emit('message', msg);
         }
 
         if (msgObj.multiplayMessageCommand === MultiplayMessageCommand.UserConnected) {
             // ルーム内の他の参加者へメッセージを送信
+            console.log('---UserConnected, id[%s] : Room[%s]', msgObj.userIdentity, msgObj.topic);
             await redisClient.set(socket.id.toString(), msg);
-            io.to(roomName).emit('message', msg);
+            socket.to(roomName).emit('message', msg);
         } 
 
         if (msgObj.multiplayMessageCommand === MultiplayMessageCommand.Message) {
             // ルーム内の他の参加者へメッセージを送信
             await redisClient.set(socket.id.toString(), msg);
-            io.to(roomName).emit('message', msg);
+            socket.to(roomName).emit('message', msg);
         } 
-        
-        if (msgObj.multiplayMessageCommand !== MultiplayMessageCommand.Update) {
-            console.log('message is: %o', msgObj);
-        }
 
         return;
         
@@ -220,7 +285,7 @@ io.on('connection', async (socket: Socket) => {
         newObj.multiplayMessageCommand = MultiplayMessageCommand.Delete;
         const jsonStr = JSON.stringify(newObj);
 
-        console.log('disconnect with socket status %o to %o', jsonStr, rooms);
+        console.log('disconnect with socket status %o to %o', newObj.userIdentity, rooms);
 
         await Promise.all(
             [...rooms].map((room: string) => {
@@ -234,7 +299,7 @@ io.on('connection', async (socket: Socket) => {
                         socket.id.toString(),
                         room
                     );
-                    io.to(room).emit('user disconnecting', jsonStr);
+                    socket.to(room).emit('user disconnecting', jsonStr);
                 }
             })
         );
@@ -272,4 +337,5 @@ Promise.all([pubClient.connect(), subClient.connect()])
     })
     .finally(() => {
         console.log(`Socket.io Listen: ${appPort}`);
+        console.log(`=================================Restarted======================================`);
     });
