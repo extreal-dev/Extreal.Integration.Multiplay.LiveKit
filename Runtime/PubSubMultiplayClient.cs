@@ -16,7 +16,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
         public NetworkClient LocalClient { get; private set; }
 
-        public string Topic { get; set; }
         public IReadOnlyDictionary<string, NetworkClient> ConnectedClients => connectedClients;
         private readonly Dictionary<string, NetworkClient> connectedClients = new Dictionary<string, NetworkClient>();
 
@@ -24,16 +23,21 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public IObservable<Unit> OnDisconnecting => transport.OnDisconnecting;
         public IObservable<string> OnUnexpectedDisconnected => transport.OnUnexpectedDisconnected;
         public IObservable<Unit> OnConnectionApprovalRejected => transport.OnConnectionApprovalRejected;
-        public IObservable<string> OnUserConnected => transport.OnUserConnected;
+        public IObservable<string> OnUserConnected => onUserConnected;
+        private readonly Subject<string> onUserConnected = new Subject<string>();
         public IObservable<string> OnUserDisconnected => transport.OnUserDisconnecting;
-        public IObservable<(string userIdentity, GameObject networkObject)> OnObjectSpawned => onObjectSpawned;
+        public IObservable<(string userIdentity, GameObject networkObject, string message)> OnObjectSpawned => onObjectSpawned;
         [SuppressMessage("Usage", "CC0033")]
-        private readonly Subject<(string, GameObject)> onObjectSpawned = new Subject<(string, GameObject)>();
+        private readonly Subject<(string, GameObject, string)> onObjectSpawned = new Subject<(string, GameObject, string)>();
         public IObservable<(string userIdentityRemote, string message)> OnMessageReceived => transport.OnMessageReceived;
 
+        // user自身が持っている自身のplayerのNetworkObjectInfoと他(player以外)のNetworkObjectInfo
         private readonly Dictionary<Guid, NetworkObjectInfo> localNetworkObjectInfoDic = new Dictionary<Guid, NetworkObjectInfo>();
+
+        // 全userのplayer gameObjectと全userのplayer以外のgameObject
         private readonly Dictionary<Guid, GameObject> networkGameObjects = new Dictionary<Guid, GameObject>();
 
+        // 自身アプリの所でspawnした全player gameObjectと全userのplayer以外のgameObject
         private readonly Dictionary<int, GameObject> networkObjectPrefabs = new Dictionary<int, GameObject>();
 
         [SuppressMessage("Usage", "CC0033")]
@@ -56,7 +60,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
             transport.OnConnected.Subscribe(userIdentityLocal =>
             {
                 LocalClient = new NetworkClient(userIdentityLocal);
-                // localNetworkObjectInfos[userIdentityLocal] = new NetworkObjectInfo();
                 connectedClients[userIdentityLocal] = LocalClient;
             });
 
@@ -72,7 +75,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
                     connectedClients[userIdentityRemote] = new NetworkClient(userIdentityRemote);
 
                     var networkObjectInfos = localNetworkObjectInfoDic.Values.ToArray();
-                    var message = new MultiplayMessage(LocalClient.UserIdentity, Topic, MultiplayMessageCommand.UserConnected, networkObjectInfos: networkObjectInfos);
+                    var message = new MultiplayMessage(MultiplayMessageCommand.UserConnected, networkObjectInfos: networkObjectInfos, toUserIdentity: userIdentityRemote);
                     transport.EnqueueRequest(message);
                 });
 
@@ -142,7 +145,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
             if (localNetworkObjectInfoDic.Count > 0)
             {
-                var message = new MultiplayMessage(LocalClient.UserIdentity, Topic, MultiplayMessageCommand.Update, networkObjectInfos: localNetworkObjectInfoDic.Values.ToArray());
+                var message = new MultiplayMessage(MultiplayMessageCommand.Update, networkObjectInfos: localNetworkObjectInfoDic.Values.ToArray());
                 transport.EnqueueRequest(message);
             }
 
@@ -161,8 +164,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
                 if (message.MultiplayMessageCommand is MultiplayMessageCommand.Create)
                 {
-                    Debug.LogWarning($"### CreatePlayer for remoteUser: {userIdentityRemote}");
-                    CreateObject(userIdentityRemote, message.NetworkObjectInfo);
+                    CreateObject(userIdentityRemote, message.NetworkObjectInfo, message.Message);
                 }
                 else if (message.MultiplayMessageCommand is MultiplayMessageCommand.Update)
                 {
@@ -178,31 +180,36 @@ namespace Extreal.Integration.Multiplay.LiveKit
                     {
                         CreateObject(userIdentityRemote, networkObjectInfo);
                     }
+                    var msg = new MultiplayMessage(MultiplayMessageCommand.UserInitialized, toUserIdentity: userIdentityRemote);
+                    transport.EnqueueRequest(msg);
+                }
+                else if (message.MultiplayMessageCommand is MultiplayMessageCommand.UserInitialized)
+                {
+                    onUserConnected.OnNext(userIdentityRemote);
                 }
             }
 
-            transport.Update();
+            transport.UpdateAsync().Forget();
         }
 
-        private void CreateObject(string userIdentity, NetworkObjectInfo networkObjectInfo)
+        private void CreateObject(string userIdentity, NetworkObjectInfo networkObjectInfo, string message = default)
         {
-            Debug.LogWarning($"### CreateObject IN because: {userIdentity}");
-            var instanceId = networkObjectInfo.InstanceId;
+            var gameObjectHash = networkObjectInfo.InstanceId;
             if (Logger.IsDebug())
             {
                 Logger.LogDebug(
                     "Create network object:"
-                    + $" Participant={userIdentity}, CreatedAt={networkObjectInfo.CreatedAt}, ObjectGuid={networkObjectInfo.ObjectGuid}, InstanceId={instanceId}");
+                    + $" Participant={userIdentity}, CreatedAt={networkObjectInfo.CreatedAt}, ObjectGuid={networkObjectInfo.ObjectGuid}, InstanceId={gameObjectHash}");
             }
 
-            var prefab = networkObjectPrefabs[instanceId];
+            var prefab = networkObjectPrefabs[gameObjectHash];
             var setToNetworkClient = (Action<GameObject>)(
-                instanceId == playerObject.GetInstanceID()
+                gameObjectHash == Utility.GetGameObjectHash(playerObject)
                     ? connectedClients[userIdentity].SetPlayerObject
                     : connectedClients[userIdentity].AddNetworkObject
             );
 
-            SpawnInternal(prefab, networkObjectInfo, setToNetworkClient, userIdentity);
+            SpawnInternal(prefab, networkObjectInfo, setToNetworkClient, userIdentity, message: message);
         }
 
         private void UpdateObject(NetworkObjectInfo obj)
@@ -225,7 +232,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public void Initialize(TransportConfig transportConfig = default)
             => transport.Initialize(transportConfig);
 
-        public async UniTask ConnectAsync(ConnectionConfig connectionConfig)
+        public async UniTask ConnectAsync(string roomName)
         {
             if (transport.IsConnected)
             {
@@ -236,11 +243,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 return;
             }
 
-            if (Logger.IsDebug())
-            {
-                Logger.LogDebug($"Connect: url={connectionConfig.Url}");
-            }
-            await transport.ConnectAsync(connectionConfig);
+            await transport.ConnectAsync(roomName);
         }
 
         public void Disconnect()
@@ -256,21 +259,19 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public UniTask DeleteRoomAsync()
             => transport.DeleteRoomAsync();
 
-        public GameObject SpawnPlayer(Vector3 position = default, Quaternion rotation = default, Transform parent = default)
+        public GameObject SpawnPlayer(Vector3 position = default, Quaternion rotation = default, Transform parent = default, string message = default)
         {
-            var selfInstanceId = 1111;
-            // var selfInstanceId = Utility.GetGameObjectHash(playerObject);
-            // var instanceId = playerObject.GetInstanceID();
+            var selfInstanceId = Utility.GetGameObjectHash(playerObject);
             if (playerObject == null)
             {
                 throw new InvalidOperationException("Add an object to use as player to the playerObject of this instance");
             }
 
             var networkObjectInfo = new NetworkObjectInfo(selfInstanceId, position, rotation);
-            return SpawnInternal(playerObject, networkObjectInfo, LocalClient.SetPlayerObject, LocalClient.UserIdentity, parent);
+            return SpawnInternal(playerObject, networkObjectInfo, LocalClient.SetPlayerObject, LocalClient.UserIdentity, parent, message);
         }
 
-        public GameObject SpawnObject(GameObject objectPrefab, Vector3 position = default, Quaternion rotation = default, Transform parent = default)
+        public GameObject SpawnObject(GameObject objectPrefab, Vector3 position = default, Quaternion rotation = default, Transform parent = default, string message = default)
         {
             if (!networkObjectPrefabs.ContainsKey(objectPrefab.GetInstanceID()))
             {
@@ -278,7 +279,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
 
             var networkObjectInfo = new NetworkObjectInfo(objectPrefab.GetInstanceID(), position, rotation);
-            return SpawnInternal(objectPrefab, networkObjectInfo, LocalClient.AddNetworkObject, LocalClient.UserIdentity, parent);
+            return SpawnInternal(objectPrefab, networkObjectInfo, LocalClient.AddNetworkObject, LocalClient.UserIdentity, parent, message);
         }
 
         private GameObject SpawnInternal
@@ -287,26 +288,29 @@ namespace Extreal.Integration.Multiplay.LiveKit
             NetworkObjectInfo networkObjectInfo,
             Action<GameObject> setToNetworkClient,
             string userIdentity,
-            Transform parent = default
+            Transform parent = default,
+            string message = default
         )
         {
             var spawnedObject = Instantiate(prefab, networkObjectInfo.Position, networkObjectInfo.Rotation, parent);
-            setToNetworkClient?.Invoke(spawnedObject);
+            setToNetworkClient.Invoke(spawnedObject);
             networkGameObjects.Add(networkObjectInfo.ObjectGuid, spawnedObject);
-
-            if (userIdentity == LocalClient.UserIdentity)
+            if (userIdentity == LocalClient?.UserIdentity)
             {
                 localNetworkObjectInfoDic.Add(networkObjectInfo.ObjectGuid, networkObjectInfo);
-                var message = new MultiplayMessage(userIdentity, Topic, MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo);
-                transport.EnqueueRequest(message);
+                var multiplayMessage = new MultiplayMessage(MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo, message: message);
+                transport.EnqueueRequest(multiplayMessage);
             }
 
-            onObjectSpawned.OnNext((userIdentity, spawnedObject));
+            onObjectSpawned.OnNext((userIdentity, spawnedObject, message));
             return spawnedObject;
         }
 
-        public void SendMessage(string userIdentityLocal, string message, MultiplayMessageCommand command = MultiplayMessageCommand.Message)
-            => transport.EnqueueRequest(new MultiplayMessage(userIdentityLocal, Topic, command, message: message));
+        public void SendMessage(string message, MultiplayMessageCommand command = MultiplayMessageCommand.Message)
+            => transport.EnqueueRequest(new MultiplayMessage(command, message: message));
+
+        public void SendMessage(string toUserIdentity, string message, MultiplayMessageCommand command = MultiplayMessageCommand.Message)
+            => transport.EnqueueRequest(new MultiplayMessage(command, message: message, toUserIdentity: toUserIdentity));
 
         public UniTask<RoomInfo[]> ListRoomsAsync()
             => transport.ListRoomsAsync();

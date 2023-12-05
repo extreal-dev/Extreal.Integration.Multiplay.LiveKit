@@ -17,7 +17,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
 {
     public class NativeMultiplayTransport : DisposableBase
     {
-        public bool IsConnected { get; private set; }
+        public bool IsConnected => ioClient != null && ioClient.Connected;
         public List<string> ConnectedUserIdentities => new List<string>();
 
         public IObservable<string> OnConnected => onConnected;
@@ -46,6 +46,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
         private string roomName;
         private string userIdentityLocal;
 
+
+
         private readonly Queue<MultiplayMessage> requestQueue = new Queue<MultiplayMessage>();
         private readonly Queue<(string, MultiplayMessage)> responseQueue = new Queue<(string, MultiplayMessage)>();
 
@@ -72,42 +74,65 @@ namespace Extreal.Integration.Multiplay.LiveKit
             onUserDisconnecting = new Subject<string>().AddTo(disposables);
             onConnectionApprovalRejected = new Subject<Unit>().AddTo(disposables);
             onMessageReceived = new Subject<(string, string)>().AddTo(disposables);
+        }
 
-            ioClient = new SocketIO(relayServerUrl, new SocketIOOptions { EIO = SocketIOClient.EngineIO.V4 }).AddTo(disposables);
+        private async void UserDisconnectingEventHandler(SocketIOResponse response)
+        {
+            await UniTask.SwitchToMainThread();
+            var disconnectingUserIdentity = response.GetValue<string>();
+            onUserDisconnecting.OnNext(disconnectingUserIdentity);
+        }
 
-            ioClient.OnConnected += ConnectedEventHandler;
+        private async UniTask<SocketIO> GetSocketAsync()
+        {
+            if (ioClient is not null)
+            {
+                if (ioClient.Connected)
+                {
+                    return ioClient;
+                }
+                // Not covered by testing due to defensive implementation
+                StopSocket();
+            }
+
+            ioClient = new SocketIO(relayServerUrl, new SocketIOOptions { EIO = SocketIOClient.EngineIO.V4 });
+
             ioClient.OnDisconnected += DisconnectedEventHandler;
-
             ioClient.On("user connected", UserConnectedEventHandler);
             ioClient.On("user disconnecting", UserDisconnectingEventHandler);
             ioClient.On("message", MessageReceivedEventHandler);
+
+            try
+            {
+                await ioClient.ConnectAsync().ConfigureAwait(true);
+            }
+            catch (ConnectionException e)
+            {
+                throw;
+            }
+
+            return ioClient;
         }
 
-        private void UserDisconnectingEventHandler(SocketIOResponse response) => throw new NotImplementedException();
-
-        private async void ConnectedEventHandler(object sender, EventArgs e)
+        private void StopSocket()
         {
-            await UniTask.SwitchToMainThread();
-            IsConnected = true;
-            userIdentityLocal = ioClient.Id;
-            ConnectedUserIdentities.Add(userIdentityLocal);
-            var message = new MultiplayMessage(userIdentityLocal, roomName, MultiplayMessageCommand.Join);
-            _ = SendMessageAsync(message.ToJson());
-            onConnected.OnNext(userIdentityLocal);
+            if (ioClient is null)
+            {
+                // Not covered by testing due to defensive implementation
+                return;
+            }
+            ioClient.OnDisconnected -= DisconnectedEventHandler;
+            ioClient.Dispose();
+            ioClient = null;
         }
 
         protected override void ReleaseManagedResources()
         {
-            ioClient.OnConnected -= ConnectedEventHandler;
-            ioClient.OnDisconnected -= DisconnectedEventHandler;
-
-            ioClient.Dispose();
-            ioClient = null;
-
+            StopSocket();
             disposables.Dispose();
         }
 
-        public void Update()
+        public async UniTask UpdateAsync()
         {
             while (requestQueue.Count > 0)
             {
@@ -115,14 +140,15 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 var jsonMsg = message.ToJson();
                 if (ioClient != null && ioClient.Connected)
                 {
-                    SendMessageAsync(jsonMsg).Forget();
+                    await SendMessageAsync(jsonMsg);
                 }
             }
         }
 
         private async UniTask SendMessageAsync(string jsonMsg)
         {
-            await ioClient.EmitAsync("message", jsonMsg);
+            var message = JsonUtility.ToJson(new Message(userIdentityLocal, jsonMsg));
+            await ioClient.EmitAsync("message", message);
         }
 
         public void Initialize(TransportConfig transportConfig)
@@ -150,20 +176,17 @@ namespace Extreal.Integration.Multiplay.LiveKit
             // return roomList.Rooms;
             return rooms;
         }
-
-        public async UniTask ConnectAsync(ConnectionConfig connectionConfig)
+        public async UniTask ConnectAsync(string roomName)
         {
-            if (connectionConfig is not RedisConnectionConfig redisConnectionConfig)
-            {
-                throw new ArgumentException("Expect RedisConnectionConfig", nameof(connectionConfig));
-            }
-
             if (Logger.IsDebug())
             {
-                Logger.LogDebug($"Connect: url={redisConnectionConfig.Url}");
+                Logger.LogDebug($"Connect: roomName={roomName}");
             }
-            roomName = redisConnectionConfig.RoomName;
-            await ioClient.ConnectAsync();
+
+            userIdentityLocal = Guid.NewGuid().ToString();
+            await (await GetSocketAsync()).EmitAsync("join", userIdentityLocal, roomName);
+
+            onConnected.OnNext(userIdentityLocal);
         }
 
         public async Task DisconnectAsync()
@@ -172,17 +195,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
             {
                 Logger.LogDebug(nameof(DisconnectAsync));
             }
-
-            IsConnected = false;
             onDisconnecting.OnNext(Unit.Default);
-
-            roomName = string.Empty;
-            requestQueue.Clear();
-            responseQueue.Clear();
-            await ioClient.DisconnectAsync();
-            ioClient.Dispose();
-            ioClient = null;
-
+            StopSocket();
         }
 
         public async UniTask DeleteRoomAsync()
@@ -202,11 +216,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         private async void UserConnectedEventHandler(SocketIOResponse response)
         {
             await UniTask.SwitchToMainThread();
-            var jsonStr = response.GetValue<string>();
-            var message = JsonUtility.FromJson<MultiplayMessage>(jsonStr);
-            var userIdentityRemote = message.UserIdentity;
-            ConnectedUserIdentities.Add(userIdentityRemote);
-            Debug.LogWarning($"### UserConnectedEventHandler IN: {userIdentityRemote}");
+            var userIdentityRemote = response.GetValue<string>();
             onUserConnected.OnNext(userIdentityRemote);
         }
 
@@ -214,14 +224,19 @@ namespace Extreal.Integration.Multiplay.LiveKit
         {
             await UniTask.SwitchToMainThread();
             var dataStr = response.GetValue<string>();
-            var message = JsonUtility.FromJson<MultiplayMessage>(dataStr);
-            var userIdentityRemote = message.UserIdentity;
-            if (message.MultiplayMessageCommand is MultiplayMessageCommand.AvatarName or MultiplayMessageCommand.Message)
+            var message = JsonUtility.FromJson<Message>(dataStr);
+
+            var multiplayMessage = JsonUtility.FromJson<MultiplayMessage>(message.MessageContent);
+
+            var userIdentityRemote = message.From;
+
+            if (multiplayMessage.MultiplayMessageCommand == MultiplayMessageCommand.Message)
             {
-                onMessageReceived.OnNext((userIdentityRemote, dataStr));
+                onMessageReceived.OnNext((userIdentityRemote, multiplayMessage.Message));
+                return;
             }
 
-            responseQueue.Enqueue((userIdentityRemote, message));
+            responseQueue.Enqueue((userIdentityRemote, multiplayMessage));
         }
 
         [Serializable]
@@ -232,6 +247,22 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
             public string Message => message;
             [SerializeField] private string message;
+        }
+
+        [Serializable]
+        public class Message
+        {
+            public string From => from;
+            [SerializeField] private string from;
+
+            public string MessageContent => messageContent;
+            [SerializeField] private string messageContent;
+
+            public Message(string from, string messageContent)
+            {
+                this.from = from;
+                this.messageContent = messageContent;
+            }
         }
     }
 }

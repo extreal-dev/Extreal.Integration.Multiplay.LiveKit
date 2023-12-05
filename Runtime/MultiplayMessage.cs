@@ -12,17 +12,15 @@ namespace Extreal.Integration.Multiplay.LiveKit
         Create,
         Update,
         UserConnected,
+        UserInitialized,
         Message,
     };
 
     [Serializable]
     public class MultiplayMessage
     {
-        public string UserIdentity => userIdentity;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private string userIdentity;
-
-        public string Topic => topic;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private string topic;
+        public string ToUserIdentity => toUserIdentity;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private string toUserIdentity;
 
         public MultiplayMessageCommand MultiplayMessageCommand => multiplayMessageCommand;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private MultiplayMessageCommand multiplayMessageCommand;
@@ -33,29 +31,22 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public NetworkObjectInfo[] NetworkObjectInfos => networkObjectInfos;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo[] networkObjectInfos;
 
-        // public string AvatarName => avatarName;
-        // [SerializeField, SuppressMessage("Usage", "CC0052")] private string avatarName;
-
         public string Message => message;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private string message;
 
         public MultiplayMessage
         (
-            string userIdentity,
-            string topic,
             MultiplayMessageCommand multiplayMessageCommand,
+            string toUserIdentity = default,
             NetworkObjectInfo networkObjectInfo = default,
             NetworkObjectInfo[] networkObjectInfos = default,
-            // string avatarName = default,
             string message = default
         )
         {
-            this.userIdentity = userIdentity;
-            this.topic = topic;
             this.multiplayMessageCommand = multiplayMessageCommand;
+            this.toUserIdentity = toUserIdentity;
             this.networkObjectInfo = networkObjectInfo;
             this.networkObjectInfos = networkObjectInfos;
-            // this.avatarName = avatarName;
             this.message = message;
         }
 
