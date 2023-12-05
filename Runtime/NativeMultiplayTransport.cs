@@ -1,4 +1,4 @@
-#if !UNITY_WEBGL && UNITY_EDITOR
+#if !UNITY_WEBGL || UNITY_EDITOR
 using Cysharp.Threading.Tasks;
 using Extreal.Core.Common.System;
 using Extreal.Core.Logging;

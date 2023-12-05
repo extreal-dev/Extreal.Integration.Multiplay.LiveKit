@@ -76,7 +76,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 return;
             }
 
-            var typeOfValues = input.GetType();
+            var typeOfValues = input.Values.GetType();
             values = JsonUtility.FromJson(jsonOfValues, typeOfValues) as MultiplayPlayerInputValues;
             input.SetValues(values);
         }

@@ -7,10 +7,10 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public virtual MultiplayPlayerInputValues Values => values;
         private MultiplayPlayerInputValues values;
 
-        public void MoveInput(Vector2 newMoveDirection)
+        public virtual void SetMove(Vector2 newMoveDirection)
             => values.SetMove(newMoveDirection);
 
         public virtual void SetValues(MultiplayPlayerInputValues values)
-            => MoveInput(values.Move);
+            => SetMove(values.Move);
     }
 }
