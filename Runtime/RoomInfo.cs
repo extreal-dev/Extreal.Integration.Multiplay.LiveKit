@@ -1,22 +1,15 @@
 using System;
+using System.Text.Json.Serialization;
 using UnityEngine;
 
 namespace Extreal.Integration.Multiplay.LiveKit
 {
-    [Serializable]
     public class RoomInfo
     {
-        public string Id => id;
-        [SerializeField] private string id;
+        [JsonPropertyName("id")]
+        public string Id { get; set; }
 
-        public string Name => name;
-
-        [SerializeField] private string name;
-
-        public RoomInfo(string id, string name)
-        {
-            this.id = id;
-            this.name = name;
-        }
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
     }
 }

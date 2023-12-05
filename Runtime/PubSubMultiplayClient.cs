@@ -20,7 +20,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         private readonly Dictionary<string, NetworkClient> connectedClients = new Dictionary<string, NetworkClient>();
 
         public IObservable<string> OnConnected => transport.OnConnected;
-        public IObservable<Unit> OnDisconnecting => transport.OnDisconnecting;
+        public IObservable<string> OnDisconnecting => transport.OnDisconnecting;
         public IObservable<string> OnUnexpectedDisconnected => transport.OnUnexpectedDisconnected;
         public IObservable<Unit> OnConnectionApprovalRejected => transport.OnConnectionApprovalRejected;
         public IObservable<string> OnUserConnected => onUserConnected;
@@ -64,7 +64,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             });
 
             transport.OnDisconnecting
-                .Merge(transport.OnUnexpectedDisconnected.Select(_ => Unit.Default))
+                .Merge(transport.OnUnexpectedDisconnected)
                 .TakeUntilDestroy(this)
                 .Subscribe(_ => Clear());
 
@@ -312,7 +312,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public void SendMessage(string toUserIdentity, string message, MultiplayMessageCommand command = MultiplayMessageCommand.Message)
             => transport.EnqueueRequest(new MultiplayMessage(command, message: message, toUserIdentity: toUserIdentity));
 
-        public UniTask<RoomInfo[]> ListRoomsAsync()
+        public UniTask<List<RoomInfo>> ListRoomsAsync()
             => transport.ListRoomsAsync();
     }
 

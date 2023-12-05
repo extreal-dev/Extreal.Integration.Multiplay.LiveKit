@@ -12,19 +12,20 @@ using UnityEngine.Networking;
 using System.Linq;
 using SocketIOClient;
 using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 
 namespace Extreal.Integration.Multiplay.LiveKit
 {
     public class NativeMultiplayTransport : DisposableBase
     {
-        public bool IsConnected => ioClient != null && ioClient.Connected;
+        public bool IsConnected { get; private set; }
         public List<string> ConnectedUserIdentities => new List<string>();
 
         public IObservable<string> OnConnected => onConnected;
         private readonly Subject<string> onConnected;
 
-        public IObservable<Unit> OnDisconnecting => onDisconnecting;
-        private readonly Subject<Unit> onDisconnecting;
+        public IObservable<string> OnDisconnecting => onDisconnecting;
+        private readonly Subject<string> onDisconnecting;
 
         public IObservable<string> OnUnexpectedDisconnected => onUnexpectedDisconnected;
         private readonly Subject<string> onUnexpectedDisconnected;
@@ -68,7 +69,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public NativeMultiplayTransport()
         {
             onConnected = new Subject<string>().AddTo(disposables);
-            onDisconnecting = new Subject<Unit>().AddTo(disposables);
+            onDisconnecting = new Subject<string>().AddTo(disposables);
             onUnexpectedDisconnected = new Subject<string>().AddTo(disposables);
             onUserConnected = new Subject<string>().AddTo(disposables);
             onUserDisconnecting = new Subject<string>().AddTo(disposables);
@@ -124,6 +125,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             ioClient.OnDisconnected -= DisconnectedEventHandler;
             ioClient.Dispose();
             ioClient = null;
+            IsConnected = false;
         }
 
         protected override void ReleaseManagedResources()
@@ -161,21 +163,19 @@ namespace Extreal.Integration.Multiplay.LiveKit
             relayServerUrl = liveKitTransportConfig.ApiServerUrl;
         }
 
-        public async UniTask<RoomInfo[]> ListRoomsAsync()
+        public async UniTask<List<RoomInfo>> ListRoomsAsync()
         {
-            var rooms = new RoomInfo[]
+            var roomList = default(RoomList);
+            await (await GetSocketAsync()).EmitAsync("list rooms", response =>
             {
-                new RoomInfo("1", "aaa"),
-                new RoomInfo("2", "bbb")
-            };
 
-            // using var uwr = UnityWebRequest.Get($"{relayServerUrl}/listRooms");
-            // await uwr.SendWebRequest();
-
-            // var roomList = JsonUtility.FromJson<RoomList>(uwr.downloadHandler.text);
-            // return roomList.Rooms;
-            return rooms;
+                Debug.LogWarning(response.ToString());
+                roomList = response.GetValue<RoomList>();
+            });
+            await UniTask.WaitUntil(() => roomList != null);
+            return roomList?.Rooms;
         }
+
         public async UniTask ConnectAsync(string roomName)
         {
             if (Logger.IsDebug())
@@ -186,6 +186,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             userIdentityLocal = Guid.NewGuid().ToString();
             await (await GetSocketAsync()).EmitAsync("join", userIdentityLocal, roomName);
 
+            IsConnected = true;
             onConnected.OnNext(userIdentityLocal);
         }
 
@@ -195,21 +196,16 @@ namespace Extreal.Integration.Multiplay.LiveKit
             {
                 Logger.LogDebug(nameof(DisconnectAsync));
             }
-            onDisconnecting.OnNext(Unit.Default);
+            onDisconnecting.OnNext("disconnect request");
             StopSocket();
         }
 
-        public async UniTask DeleteRoomAsync()
-        {
-            using var uwr = UnityWebRequest.Get($"{relayServerUrl}/deleteRoom?RoomName={roomName}");
-            await uwr.SendWebRequest();
-
-            roomName = string.Empty;
-        }
+        public UniTask DeleteRoomAsync() => SendMessageAsync("delete room");
 
         private async void DisconnectedEventHandler(object sender, string e)
         {
             await UniTask.SwitchToMainThread();
+            IsConnected = false;
             onUnexpectedDisconnected.OnNext(e);
         }
 
@@ -226,6 +222,13 @@ namespace Extreal.Integration.Multiplay.LiveKit
             var dataStr = response.GetValue<string>();
             var message = JsonUtility.FromJson<Message>(dataStr);
 
+            if (message.MessageContent == "delete room")
+            {
+                onDisconnecting.OnNext("delete room");
+                StopSocket();
+                return;
+            }
+
             var multiplayMessage = JsonUtility.FromJson<MultiplayMessage>(message.MessageContent);
 
             var userIdentityRemote = message.From;
@@ -239,14 +242,10 @@ namespace Extreal.Integration.Multiplay.LiveKit
             responseQueue.Enqueue((userIdentityRemote, multiplayMessage));
         }
 
-        [Serializable]
-        private class RoomList
+        public class RoomList
         {
-            public RoomInfo[] Rooms => rooms;
-            [SerializeField] private RoomInfo[] rooms;
-
-            public string Message => message;
-            [SerializeField] private string message;
+            [JsonPropertyName("rooms")]
+            public List<RoomInfo> Rooms { get; set; }
         }
 
         [Serializable]
