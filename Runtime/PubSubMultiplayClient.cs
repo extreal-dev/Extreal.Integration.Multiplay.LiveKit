@@ -131,6 +131,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 return;
             }
 
+            var networkObjectInfosToSend = new List<NetworkObjectInfo>();
             foreach ((var guid, var networkObjectInfo) in localNetworkObjectInfoDic)
             {
                 var localGameObject = networkGameObjects[guid];
@@ -142,10 +143,15 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 }
 
                 networkObjectInfo.Updated();
+
+                if (networkObjectInfo.CheckWhetherToSendData())
+                {
+                    networkObjectInfosToSend.Add(networkObjectInfo);
+                }
             }
-            if (localNetworkObjectInfoDic.Count > 0)
+            if (networkObjectInfosToSend.Count > 0)
             {
-                var message = new MultiplayMessage(MultiplayMessageCommand.Update, networkObjectInfos: localNetworkObjectInfoDic.Values.ToArray());
+                var message = new MultiplayMessage(MultiplayMessageCommand.Update, networkObjectInfos: networkObjectInfosToSend.ToArray());
                 transport.EnqueueRequest(message);
             }
 
