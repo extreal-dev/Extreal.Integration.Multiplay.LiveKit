@@ -5,7 +5,7 @@ using System.Collections;
 using UnityEditor;
 #endif
 
-namespace Extreal.Integration.Multiplay.LiveKit
+namespace Extreal.Integration.Multiplay.Common
 {
     public static class Utility
     {

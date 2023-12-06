@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 
-namespace Extreal.Integration.Multiplay.LiveKit
+namespace Extreal.Integration.Multiplay.Common
 {
     public enum MultiplayMessageCommand
     {
@@ -19,9 +19,6 @@ namespace Extreal.Integration.Multiplay.LiveKit
     [Serializable]
     public class MultiplayMessage
     {
-        public string ToUserIdentity => toUserIdentity;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private string toUserIdentity;
-
         public MultiplayMessageCommand MultiplayMessageCommand => multiplayMessageCommand;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private MultiplayMessageCommand multiplayMessageCommand;
 
@@ -37,14 +34,12 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public MultiplayMessage
         (
             MultiplayMessageCommand multiplayMessageCommand,
-            string toUserIdentity = default,
             NetworkObjectInfo networkObjectInfo = default,
             NetworkObjectInfo[] networkObjectInfos = default,
             string message = default
         )
         {
             this.multiplayMessageCommand = multiplayMessageCommand;
-            this.toUserIdentity = toUserIdentity;
             this.networkObjectInfo = networkObjectInfo;
             this.networkObjectInfos = networkObjectInfos;
             this.message = message;

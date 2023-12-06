@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Extreal.Integration.Multiplay.LiveKit
+namespace Extreal.Integration.Multiplay.Common
 {
     [Serializable]
     public class MultiplayPlayerInputValues

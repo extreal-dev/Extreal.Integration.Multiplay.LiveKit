@@ -7,7 +7,7 @@ using System.Linq;
 using UniRx;
 using UnityEngine;
 
-namespace Extreal.Integration.Multiplay.LiveKit
+namespace Extreal.Integration.Multiplay.Common
 {
     public class PubSubMultiplayClient : MonoBehaviour
     {
@@ -41,7 +41,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
         private readonly Dictionary<int, GameObject> networkObjectPrefabs = new Dictionary<int, GameObject>();
 
         [SuppressMessage("Usage", "CC0033")]
-        private readonly NativeMultiplayTransport transport = new NativeMultiplayTransport();
+        private IExtrealMultiplayTransport transport;
 
         private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(PubSubMultiplayClient));
 
@@ -75,8 +75,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
                     connectedClients[userIdentityRemote] = new NetworkClient(userIdentityRemote);
 
                     var networkObjectInfos = localNetworkObjectInfoDic.Values.ToArray();
-                    var message = new MultiplayMessage(MultiplayMessageCommand.UserConnected, networkObjectInfos: networkObjectInfos, toUserIdentity: userIdentityRemote);
-                    transport.EnqueueRequest(message);
+                    var message = new MultiplayMessage(MultiplayMessageCommand.UserConnected, networkObjectInfos: networkObjectInfos);
+                    transport.EnqueueRequest(message, userIdentityRemote);
                 });
 
             transport.OnUserDisconnecting
@@ -181,13 +181,14 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 }
                 else if (message.MultiplayMessageCommand is MultiplayMessageCommand.UserConnected)
                 {
+                    Debug.LogWarning($"user connected: {userIdentityRemote}");
                     connectedClients[userIdentityRemote] = new NetworkClient(userIdentityRemote);
                     foreach (var networkObjectInfo in message.NetworkObjectInfos)
                     {
                         CreateObject(userIdentityRemote, networkObjectInfo);
                     }
-                    var msg = new MultiplayMessage(MultiplayMessageCommand.UserInitialized, toUserIdentity: userIdentityRemote);
-                    transport.EnqueueRequest(msg);
+                    var msg = new MultiplayMessage(MultiplayMessageCommand.UserInitialized);
+                    transport.EnqueueRequest(msg, userIdentityRemote);
                 }
                 else if (message.MultiplayMessageCommand is MultiplayMessageCommand.UserInitialized)
                 {
@@ -235,11 +236,11 @@ namespace Extreal.Integration.Multiplay.LiveKit
             }
         }
 
-        public void Initialize(TransportConfig transportConfig = default)
-            => transport.Initialize(transportConfig);
+        public void SetTransport(IExtrealMultiplayTransport transport)
+            => this.transport = transport;
 
-        public UniTask ConnectAsync(string roomName)
-            => transport.ConnectAsync(roomName);
+        public UniTask ConnectAsync(MultiplayConnectionConfig connectionConfig)
+            => transport.ConnectAsync(connectionConfig);
 
         public void Disconnect()
         {
@@ -305,21 +306,9 @@ namespace Extreal.Integration.Multiplay.LiveKit
             => transport.EnqueueRequest(new MultiplayMessage(command, message: message));
 
         public void SendMessage(string toUserIdentity, string message, MultiplayMessageCommand command = MultiplayMessageCommand.Message)
-            => transport.EnqueueRequest(new MultiplayMessage(command, message: message, toUserIdentity: toUserIdentity));
+            => transport.EnqueueRequest(new MultiplayMessage(command, message: message), toUserIdentity);
 
-        public UniTask<List<RoomInfo>> ListRoomsAsync()
+        public UniTask<List<MultiplayRoomInfo>> ListRoomsAsync()
             => transport.ListRoomsAsync();
     }
-
-#if !UNITY_WEBGL || UNITY_EDITOR
-    public class LiveKitMultiplayTransport : NativeMultiplayTransport
-    {
-        public LiveKitMultiplayTransport() : base() { }
-    }
-#else
-    public class LiveKitMultiplayTransport : WebGLMultiplayTransport
-    {
-        public LiveKitMultiplayTransport() : base() { }
-    };
-#endif
 }

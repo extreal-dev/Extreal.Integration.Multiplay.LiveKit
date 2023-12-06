@@ -35,7 +35,7 @@ app.get("/metrics", async (req, res) => {
 });
 
 type Message = {
-    toUserIdentity: string;
+    to: string;
 };
 
 type ListHostsResponse = {
@@ -81,27 +81,57 @@ io.on("connection", async (socket: Socket) => {
     let roomName = "";
     let userIdentity = "";
 
-    socket.on("join", async (receivedUserIdentity: string, receivedRoomName: string) => {
-        console.log(`!!!: ${receivedRoomName}`);
-        roomName = receivedRoomName;
-        userIdentity = receivedUserIdentity;
-        // ルームに加入する場合(初回の接続)
-        console.log("---Join         , id[%s] : Room[%s]", userIdentity, roomName);
-        await redisClient.set(receivedUserIdentity, socket.id.toString());
-        await socket.join(roomName); // ルームへ加入
-        // ルームにいる他のクライアントにユーザが参加したことを通知
-        socket.to(roomName).emit("user connected", userIdentity);
+    socket.on(
+        "join",
+        async (
+            receivedUserIdentity: string,
+            receivedRoomName: string,
+            receivedMaxCapacity: number,
+            callback: (response: string) => void,
+        ) => {
+            console.log(`!!!: ${receivedRoomName}`);
+            roomName = receivedRoomName;
+            userIdentity = receivedUserIdentity;
 
-        return;
-    });
+            if (
+                ![...rooms().entries()]
+                    .filter((entry) => !entry[1].has(entry[0]))
+                    .find((entry) => entry[0] === roomName) &&
+                receivedMaxCapacity !== 0
+            ) {
+                await redisClient.set(`MaxCapacity#${roomName}`, receivedMaxCapacity);
+            }
+
+            const maxCapacityStr = await redisClient.get(`MaxCapacity#${roomName}`);
+            if (maxCapacityStr) {
+                const maxCapacity = Number.parseInt(maxCapacityStr);
+                const connectedClientNum = rooms().get(roomName)?.size as number;
+                if (connectedClientNum >= maxCapacity) {
+                    console.log(`Reject user: ${userIdentity}`);
+                    callback("rejected");
+                    return;
+                }
+            }
+
+            callback("approved");
+            console.log("---Join         , id[%s] : Room[%s]", userIdentity, roomName);
+            await redisClient.set(userIdentity, socket.id.toString());
+            await socket.join(roomName); // ルームへ加入
+            // ルームにいる他のクライアントにユーザが参加したことを通知
+            socket.to(roomName).emit("user connected", userIdentity);
+
+            return;
+        },
+    );
 
     socket.on("message", async (msg: string) => {
         const msgJson: Message = JSON.parse(msg);
-        if (msgJson.toUserIdentity) {
-            const socketId = await redisClient.get(msgJson.toUserIdentity);
+        if (msgJson.to) {
+            const socketId = await redisClient.get(msgJson.to);
             if (socketId) {
                 socket.to(socketId).emit("message", msg);
             }
+            return;
         }
         if (roomName) {
             socket.to(roomName).emit("message", msg);

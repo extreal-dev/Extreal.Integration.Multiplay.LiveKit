@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Extreal.Integration.Multiplay.LiveKit
+namespace Extreal.Integration.Multiplay.Common
 {
     public class RedisPlayerInput : MonoBehaviour
     {

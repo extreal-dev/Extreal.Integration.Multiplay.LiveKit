@@ -2,7 +2,7 @@ using UnityEngine;
 using System;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Extreal.Integration.Multiplay.LiveKit
+namespace Extreal.Integration.Multiplay.Common
 {
     [Serializable]
     public class NetworkObjectInfo : ISerializationCallbackReceiver

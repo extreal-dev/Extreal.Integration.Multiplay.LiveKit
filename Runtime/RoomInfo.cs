@@ -1,15 +1,14 @@
-using System;
-using System.Text.Json.Serialization;
-using UnityEngine;
-
-namespace Extreal.Integration.Multiplay.LiveKit
+namespace Extreal.Integration.Multiplay.Common
 {
-    public class RoomInfo
+    public class MultiplayRoomInfo
     {
-        [JsonPropertyName("id")]
-        public string Id { get; set; }
+        public string Id { get; }
+        public string Name { get; }
 
-        [JsonPropertyName("name")]
-        public string Name { get; set; }
+        public MultiplayRoomInfo(string id, string name)
+        {
+            Id = id;
+            Name = name;
+        }
     }
 }
