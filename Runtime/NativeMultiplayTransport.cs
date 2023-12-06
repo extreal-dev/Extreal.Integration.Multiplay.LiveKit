@@ -93,7 +93,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
                     return ioClient;
                 }
                 // Not covered by testing due to defensive implementation
-                StopSocket();
+                await StopSocketAsync();
             }
 
             ioClient = new SocketIO(relayServerUrl, new SocketIOOptions { EIO = SocketIOClient.EngineIO.V4 });
@@ -115,14 +115,18 @@ namespace Extreal.Integration.Multiplay.LiveKit
             return ioClient;
         }
 
-        private void StopSocket()
+        private async UniTask StopSocketAsync()
         {
             if (ioClient is null)
             {
                 // Not covered by testing due to defensive implementation
                 return;
             }
+
             ioClient.OnDisconnected -= DisconnectedEventHandler;
+
+            await ioClient.EmitAsync("disconnecting");
+
             ioClient.Dispose();
             ioClient = null;
             IsConnected = false;
@@ -130,7 +134,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
 
         protected override void ReleaseManagedResources()
         {
-            StopSocket();
+            StopSocketAsync().Forget();
             disposables.Dispose();
         }
 
@@ -197,7 +201,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
                 Logger.LogDebug(nameof(DisconnectAsync));
             }
             onDisconnecting.OnNext("disconnect request");
-            StopSocket();
+            await StopSocketAsync();
         }
 
         public UniTask DeleteRoomAsync() => SendMessageAsync("delete room");
@@ -225,7 +229,7 @@ namespace Extreal.Integration.Multiplay.LiveKit
             if (message.MessageContent == "delete room")
             {
                 onDisconnecting.OnNext("delete room");
-                StopSocket();
+                StopSocketAsync().Forget();
                 return;
             }
 

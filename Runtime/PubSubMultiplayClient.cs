@@ -232,19 +232,8 @@ namespace Extreal.Integration.Multiplay.LiveKit
         public void Initialize(TransportConfig transportConfig = default)
             => transport.Initialize(transportConfig);
 
-        public async UniTask ConnectAsync(string roomName)
-        {
-            if (transport.IsConnected)
-            {
-                if (Logger.IsWarn())
-                {
-                    Logger.LogWarn("This client is already connected.");
-                }
-                return;
-            }
-
-            await transport.ConnectAsync(roomName);
-        }
+        public UniTask ConnectAsync(string roomName)
+            => transport.ConnectAsync(roomName);
 
         public void Disconnect()
         {
