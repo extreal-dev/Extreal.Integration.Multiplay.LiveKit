@@ -83,16 +83,18 @@ namespace Extreal.Integration.Multiplay.Common
                 .TakeUntilDestroy(this)
                 .Subscribe(userIdentityRemote =>
                 {
-                    var networkClient = connectedClients[userIdentityRemote];
-                    if (networkClient.PlayerObject != null)
+                    if (connectedClients.TryGetValue(userIdentityRemote, out var networkClient))
                     {
-                        Destroy(networkClient.PlayerObject);
+                        if (networkClient.PlayerObject != null)
+                        {
+                            Destroy(networkClient.PlayerObject);
+                        }
+                        foreach (var networkObject in networkClient.NetworkObjects)
+                        {
+                            Destroy(networkObject);
+                        }
+                        connectedClients.Remove(userIdentityRemote);
                     }
-                    foreach (var networkObject in networkClient.NetworkObjects)
-                    {
-                        Destroy(networkObject);
-                    }
-                    connectedClients.Remove(userIdentityRemote);
                 });
 
             AddToNetworkObjectPrefabs(playerObject);
