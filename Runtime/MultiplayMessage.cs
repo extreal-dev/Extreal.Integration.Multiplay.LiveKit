@@ -44,8 +44,5 @@ namespace Extreal.Integration.Multiplay.Common
             this.networkObjectInfos = networkObjectInfos;
             this.message = message;
         }
-
-        public string ToJson()
-            => JsonUtility.ToJson(this);
     }
 }
