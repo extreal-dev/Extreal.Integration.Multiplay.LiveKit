@@ -1,11 +1,11 @@
 namespace Extreal.Integration.Multiplay.Common
 {
-    public class MultiplayRoomInfo
+    public class Room
     {
         public string Id { get; }
         public string Name { get; }
 
-        public MultiplayRoomInfo(string id, string name)
+        public Room(string id, string name)
         {
             Id = id;
             Name = name;

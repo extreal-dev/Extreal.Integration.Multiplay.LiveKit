@@ -20,7 +20,7 @@ namespace Extreal.Integration.Multiplay.Common
         int ResponseQueueCount();
         (string userIdentity, MultiplayMessage message) DequeueResponse();
         UniTask UpdateAsync();
-        UniTask<List<MultiplayRoomInfo>> ListRoomsAsync();
+        UniTask<List<Room>> ListRoomsAsync();
         UniTask ConnectAsync(MultiplayConnectionConfig connectionConfig);
         UniTask DisconnectAsync();
         UniTask DeleteRoomAsync();

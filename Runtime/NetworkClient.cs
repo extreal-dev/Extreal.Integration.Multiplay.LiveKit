@@ -13,7 +13,7 @@ namespace Extreal.Integration.Multiplay.Common
         public NetworkClient(string userIdentity)
             => UserIdentity = userIdentity;
 
-        public void SetPlayerObject(GameObject playerObject)
+        internal void SetPlayerObject(GameObject playerObject)
             => PlayerObject = playerObject;
 
         internal void AddNetworkObject(GameObject networkObject)

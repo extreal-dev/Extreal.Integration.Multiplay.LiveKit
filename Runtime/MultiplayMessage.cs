@@ -22,11 +22,11 @@ namespace Extreal.Integration.Multiplay.Common
         public MultiplayMessageCommand MultiplayMessageCommand => multiplayMessageCommand;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private MultiplayMessageCommand multiplayMessageCommand;
 
-        public NetworkObjectInfo NetworkObjectInfo => networkObjectInfo;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo networkObjectInfo;
+        public NetworkObject NetworkObjectInfo => networkObjectInfo;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObject networkObjectInfo;
 
-        public NetworkObjectInfo[] NetworkObjectInfos => networkObjectInfos;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo[] networkObjectInfos;
+        public NetworkObject[] NetworkObjectInfos => networkObjectInfos;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObject[] networkObjectInfos;
 
         public string Message => message;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private string message;
@@ -34,8 +34,8 @@ namespace Extreal.Integration.Multiplay.Common
         public MultiplayMessage
         (
             MultiplayMessageCommand multiplayMessageCommand,
-            NetworkObjectInfo networkObjectInfo = default,
-            NetworkObjectInfo[] networkObjectInfos = default,
+            NetworkObject networkObjectInfo = default,
+            NetworkObject[] networkObjectInfos = default,
             string message = default
         )
         {

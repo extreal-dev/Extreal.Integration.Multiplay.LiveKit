@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using UniRx;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Extreal.Integration.Multiplay.Common
 {
@@ -33,7 +34,7 @@ namespace Extreal.Integration.Multiplay.Common
         public IObservable<(string userIdentityRemote, string message)> OnMessageReceived => transport.OnMessageReceived;
 
         // user自身が持っている自身のplayerのNetworkObjectInfoと他(player以外)のNetworkObjectInfo
-        private readonly Dictionary<Guid, NetworkObjectInfo> localNetworkObjectInfoDic = new Dictionary<Guid, NetworkObjectInfo>();
+        private readonly Dictionary<Guid, NetworkObject> localNetworkObjectInfoDic = new Dictionary<Guid, NetworkObject>();
 
         // 自身の所でspawnした全userのplayer gameObjectと全userのplayer以外のgameObject
         private readonly Dictionary<Guid, GameObject> networkGameObjects = new Dictionary<Guid, GameObject>();
@@ -110,7 +111,7 @@ namespace Extreal.Integration.Multiplay.Common
             {
                 return;
             }
-            var selfInstanceId = Utility.GetGameObjectHash(go);
+            var selfInstanceId = GetGameObjectHash(go);
             networkObjectPrefabs.Add(selfInstanceId, go);
         }
 
@@ -134,7 +135,7 @@ namespace Extreal.Integration.Multiplay.Common
                 return;
             }
 
-            var networkObjectInfosToSend = new List<NetworkObjectInfo>();
+            var networkObjectInfosToSend = new List<NetworkObject>();
             foreach ((var guid, var networkObjectInfo) in localNetworkObjectInfoDic)
             {
                 var localGameObject = networkGameObjects[guid];
@@ -202,9 +203,9 @@ namespace Extreal.Integration.Multiplay.Common
             transport.UpdateAsync().Forget();
         }
 
-        private void CreateObject(string userIdentity, NetworkObjectInfo networkObjectInfo, string message = default)
+        private void CreateObject(string userIdentity, NetworkObject networkObjectInfo, string message = default)
         {
-            var gameObjectHash = networkObjectInfo.InstanceId;
+            var gameObjectHash = networkObjectInfo.GameObjectHash;
             if (Logger.IsDebug())
             {
                 Logger.LogDebug(
@@ -214,7 +215,7 @@ namespace Extreal.Integration.Multiplay.Common
 
             var prefab = networkObjectPrefabs[gameObjectHash];
             var setToNetworkClient = (Action<GameObject>)(
-                gameObjectHash == Utility.GetGameObjectHash(playerObject)
+                gameObjectHash == GetGameObjectHash(playerObject)
                     ? connectedClients[userIdentity].SetPlayerObject
                     : connectedClients[userIdentity].AddNetworkObject
             );
@@ -222,7 +223,7 @@ namespace Extreal.Integration.Multiplay.Common
             SpawnInternal(prefab, networkObjectInfo, setToNetworkClient, userIdentity, message: message);
         }
 
-        private void UpdateObject(NetworkObjectInfo obj)
+        private void UpdateObject(NetworkObject obj)
         {
             if (networkGameObjects.TryGetValue(obj.ObjectGuid, out var objectToBeUpdated))
             {
@@ -260,31 +261,31 @@ namespace Extreal.Integration.Multiplay.Common
 
         public GameObject SpawnPlayer(Vector3 position = default, Quaternion rotation = default, Transform parent = default, string message = default)
         {
-            var selfInstanceId = Utility.GetGameObjectHash(playerObject);
+            var selfInstanceId = GetGameObjectHash(playerObject);
             if (playerObject == null)
             {
                 throw new InvalidOperationException("Add an object to use as player to the playerObject of this instance");
             }
 
-            var networkObjectInfo = new NetworkObjectInfo(selfInstanceId, position, rotation);
+            var networkObjectInfo = new NetworkObject(selfInstanceId, position, rotation);
             return SpawnInternal(playerObject, networkObjectInfo, LocalClient.SetPlayerObject, LocalClient.UserIdentity, parent, message);
         }
 
         public GameObject SpawnObject(GameObject objectPrefab, Vector3 position = default, Quaternion rotation = default, Transform parent = default, string message = default)
         {
-            if (!networkObjectPrefabs.ContainsKey(objectPrefab.GetInstanceID()))
+            if (!networkObjectPrefabs.ContainsKey(GetGameObjectHash(objectPrefab)))
             {
                 throw new ArgumentOutOfRangeException(nameof(objectPrefab), "Specify any of the objects you have added to the networkObjects of this instance");
             }
 
-            var networkObjectInfo = new NetworkObjectInfo(objectPrefab.GetInstanceID(), position, rotation);
+            var networkObjectInfo = new NetworkObject(GetGameObjectHash(objectPrefab), position, rotation);
             return SpawnInternal(objectPrefab, networkObjectInfo, LocalClient.AddNetworkObject, LocalClient.UserIdentity, parent, message);
         }
 
         private GameObject SpawnInternal
         (
             GameObject prefab,
-            NetworkObjectInfo networkObjectInfo,
+            NetworkObject networkObjectInfo,
             Action<GameObject> setToNetworkClient,
             string userIdentity,
             Transform parent = default,
@@ -305,13 +306,59 @@ namespace Extreal.Integration.Multiplay.Common
             return spawnedObject;
         }
 
+        private static int GetGameObjectHash(GameObject target)
+        {
+            var id = GetHierarchyPath(target);
+            return id.GetHashCode();
+        }
+
+        private static string GetHierarchyPath(GameObject target)
+        {
+            var path = string.Empty;
+            var current = target.transform;
+
+            while (current != null)
+            {
+                var index = current.GetSiblingIndex();
+                path = "/" + current.name + index + path;
+                current = current.parent;
+            }
+            var belongScene = GetBelongScene(target);
+            return "/" + belongScene.name + path;
+        }
+
+        private static Scene GetBelongScene(GameObject target)
+        {
+            for (var i = 0; i < SceneManager.sceneCount; i++)
+            {
+                var scene = SceneManager.GetSceneAt(i);
+                if (!scene.IsValid())
+                {
+                    continue;
+                }
+                if (!scene.isLoaded)
+                {
+                    continue;
+                }
+                var roots = scene.GetRootGameObjects();
+                foreach (var root in roots)
+                {
+                    if (root == target.transform.root.gameObject)
+                    {
+                        return scene;
+                    }
+                }
+            }
+            return default;
+        }
+
         public void SendMessage(string message, MultiplayMessageCommand command = MultiplayMessageCommand.Message)
             => transport.EnqueueRequest(new MultiplayMessage(command, message: message));
 
         public void SendMessage(string toUserIdentity, string message, MultiplayMessageCommand command = MultiplayMessageCommand.Message)
             => transport.EnqueueRequest(new MultiplayMessage(command, message: message), toUserIdentity);
 
-        public UniTask<List<MultiplayRoomInfo>> ListRoomsAsync()
+        public UniTask<List<Room>> ListRoomsAsync()
             => transport.ListRoomsAsync();
     }
 }
