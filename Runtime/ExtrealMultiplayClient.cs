@@ -41,8 +41,6 @@ namespace Extreal.Integration.Multiplay.Common
         // spawnに使うplayer prefabとplayer以外のprefab
         private readonly Dictionary<int, GameObject> networkObjectPrefabs = new Dictionary<int, GameObject>();
 
-        private readonly CompositeDisposable disposables = new CompositeDisposable();
-
         [SuppressMessage("Usage", "CC0033")]
         private IExtrealMultiplayTransport transport;
 
