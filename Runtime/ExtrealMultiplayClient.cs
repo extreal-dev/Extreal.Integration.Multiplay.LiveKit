@@ -24,6 +24,7 @@ namespace Extreal.Integration.Multiplay.Common
         public IObservable<string> OnUnexpectedDisconnected => transport.OnUnexpectedDisconnected;
         public IObservable<Unit> OnConnectionApprovalRejected => transport.OnConnectionApprovalRejected;
         public IObservable<string> OnUserConnected => onUserConnected;
+        [SuppressMessage("Usage", "CC0033")]
         private readonly Subject<string> onUserConnected = new Subject<string>();
         public IObservable<string> OnUserDisconnected => transport.OnUserDisconnecting;
         public IObservable<(string userIdentity, GameObject networkObject, string message)> OnObjectSpawned => onObjectSpawned;
@@ -34,11 +35,13 @@ namespace Extreal.Integration.Multiplay.Common
         // user自身が持っている自身のplayerのNetworkObjectInfoと他(player以外)のNetworkObjectInfo
         private readonly Dictionary<Guid, NetworkObjectInfo> localNetworkObjectInfoDic = new Dictionary<Guid, NetworkObjectInfo>();
 
-        // 全userのplayer gameObjectと全userのplayer以外のgameObject
+        // 自身の所でspawnした全userのplayer gameObjectと全userのplayer以外のgameObject
         private readonly Dictionary<Guid, GameObject> networkGameObjects = new Dictionary<Guid, GameObject>();
 
-        // 自身アプリの所でspawnした全player gameObjectと全userのplayer以外のgameObject
+        // spawnに使うplayer prefabとplayer以外のprefab
         private readonly Dictionary<int, GameObject> networkObjectPrefabs = new Dictionary<int, GameObject>();
+
+        private readonly CompositeDisposable disposables = new CompositeDisposable();
 
         [SuppressMessage("Usage", "CC0033")]
         private IExtrealMultiplayTransport transport;
