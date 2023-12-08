@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Extreal.Integration.Multiplay.Common
 {
-    public class RedisPlayerInput : MonoBehaviour
+    public class MultiplayPlayerInput : MonoBehaviour
     {
         public virtual MultiplayPlayerInputValues Values => values;
         private MultiplayPlayerInputValues values;

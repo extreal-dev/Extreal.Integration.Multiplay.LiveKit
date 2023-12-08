@@ -77,7 +77,7 @@ namespace Extreal.Integration.Multiplay.Common
             rotation = transform.rotation;
         }
 
-        public void ApplyValuesTo(in RedisPlayerInput input)
+        public void ApplyValuesTo(in MultiplayPlayerInput input)
         {
             if (string.IsNullOrEmpty(jsonOfValues))
             {
@@ -89,7 +89,7 @@ namespace Extreal.Integration.Multiplay.Common
             input.SetValues(values);
         }
 
-        public void GetValuesFrom(in RedisPlayerInput input)
+        public void GetValuesFrom(in MultiplayPlayerInput input)
             => values = input.Values;
     }
 }

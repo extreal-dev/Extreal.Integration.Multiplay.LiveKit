@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Extreal.Integration.Multiplay.Common
 {
-    public class PubSubMultiplayClient : MonoBehaviour
+    public class ExtrealMultiplayClient : MonoBehaviour
     {
         [SerializeField] private GameObject playerObject;
         [SerializeField] private GameObject[] networkObjects;
@@ -43,7 +43,7 @@ namespace Extreal.Integration.Multiplay.Common
         [SuppressMessage("Usage", "CC0033")]
         private IExtrealMultiplayTransport transport;
 
-        private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(PubSubMultiplayClient));
+        private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(ExtrealMultiplayClient));
 
         public void Awake()
             => Initialize();
@@ -139,7 +139,7 @@ namespace Extreal.Integration.Multiplay.Common
                 var localGameObject = networkGameObjects[guid];
                 networkObjectInfo.GetTransformFrom(localGameObject.transform);
 
-                if (localGameObject.TryGetComponent(out RedisPlayerInput input))
+                if (localGameObject.TryGetComponent(out MultiplayPlayerInput input))
                 {
                     networkObjectInfo.GetValuesFrom(in input);
                 }
@@ -225,7 +225,7 @@ namespace Extreal.Integration.Multiplay.Common
         {
             if (networkGameObjects.TryGetValue(obj.ObjectGuid, out var objectToBeUpdated))
             {
-                if (objectToBeUpdated.TryGetComponent(out RedisPlayerInput input))
+                if (objectToBeUpdated.TryGetComponent(out MultiplayPlayerInput input))
                 {
                     obj.ApplyValuesTo(in input);
                 }
