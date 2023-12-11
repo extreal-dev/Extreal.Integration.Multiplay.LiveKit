@@ -6,12 +6,9 @@ namespace Extreal.Integration.Multiplay.Common
 {
     public enum MultiplayMessageCommand
     {
-        None,
-        Join,
-        AvatarName,
         Create,
         Update,
-        UserConnected,
+        CreateExistedObject,
         UserInitialized,
         Message,
     };
@@ -22,11 +19,11 @@ namespace Extreal.Integration.Multiplay.Common
         public MultiplayMessageCommand MultiplayMessageCommand => multiplayMessageCommand;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private MultiplayMessageCommand multiplayMessageCommand;
 
-        public NetworkObject NetworkObjectInfo => networkObjectInfo;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObject networkObjectInfo;
+        public NetworkObjectInfo NetworkObjectInfo => networkObjectInfo;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo networkObjectInfo;
 
-        public NetworkObject[] NetworkObjectInfos => networkObjectInfos;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObject[] networkObjectInfos;
+        public NetworkObjectInfo[] NetworkObjectInfos => networkObjectInfos;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo[] networkObjectInfos;
 
         public string Message => message;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private string message;
@@ -34,8 +31,8 @@ namespace Extreal.Integration.Multiplay.Common
         public MultiplayMessage
         (
             MultiplayMessageCommand multiplayMessageCommand,
-            NetworkObject networkObjectInfo = default,
-            NetworkObject[] networkObjectInfos = default,
+            NetworkObjectInfo networkObjectInfo = default,
+            NetworkObjectInfo[] networkObjectInfos = default,
             string message = default
         )
         {

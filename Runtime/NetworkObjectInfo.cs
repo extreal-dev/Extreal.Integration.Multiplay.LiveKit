@@ -5,7 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Extreal.Integration.Multiplay.Common
 {
     [Serializable]
-    public class NetworkObject : ISerializationCallbackReceiver
+    public class NetworkObjectInfo : ISerializationCallbackReceiver
     {
         public Guid ObjectGuid { get; private set; }
         [SerializeField] private string objectId;
@@ -30,7 +30,7 @@ namespace Extreal.Integration.Multiplay.Common
         private MultiplayPlayerInputValues values;
         [SerializeField] private string jsonOfValues;
 
-        public NetworkObject(int gameObjectHash, Vector3 position, Quaternion rotation)
+        public NetworkObjectInfo(int gameObjectHash, Vector3 position, Quaternion rotation)
         {
             this.gameObjectHash = gameObjectHash;
             this.position = position;

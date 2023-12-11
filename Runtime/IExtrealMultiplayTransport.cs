@@ -14,11 +14,10 @@ namespace Extreal.Integration.Multiplay.Common
         IObservable<Unit> OnConnectionApprovalRejected { get; }
         IObservable<string> OnUserConnected { get; }
         IObservable<string> OnUserDisconnecting { get; }
-        IObservable<(string, string)> OnMessageReceived { get; }
 
-        void EnqueueRequest(MultiplayMessage message, string to = default);
+        void EnqueueRequest(string message, string to = default);
         int ResponseQueueCount();
-        (string userIdentity, MultiplayMessage message) DequeueResponse();
+        (string from, string message) DequeueResponse();
         UniTask UpdateAsync();
         UniTask<List<Room>> ListRoomsAsync();
         UniTask ConnectAsync(MultiplayConnectionConfig connectionConfig);
