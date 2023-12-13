@@ -16,8 +16,8 @@ namespace Extreal.Integration.Multiplay.Common
     [Serializable]
     public class MultiplayMessage
     {
-        public MultiplayMessageCommand MultiplayMessageCommand => multiplayMessageCommand;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private MultiplayMessageCommand multiplayMessageCommand;
+        public MultiplayMessageCommand Command => command;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private MultiplayMessageCommand command;
 
         public NetworkObjectInfo NetworkObjectInfo => networkObjectInfo;
         [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo networkObjectInfo;
@@ -30,13 +30,13 @@ namespace Extreal.Integration.Multiplay.Common
 
         public MultiplayMessage
         (
-            MultiplayMessageCommand multiplayMessageCommand,
+            MultiplayMessageCommand command,
             NetworkObjectInfo networkObjectInfo = default,
             NetworkObjectInfo[] networkObjectInfos = default,
             string message = default
         )
         {
-            this.multiplayMessageCommand = multiplayMessageCommand;
+            this.command = command;
             this.networkObjectInfo = networkObjectInfo;
             this.networkObjectInfos = networkObjectInfos;
             this.message = message;

@@ -5,6 +5,7 @@
         "Extreal.SampleApp.Holiday.Analyzer",
         "Extreal.Core.Logging",
         "Extreal.Core.Common",
+        "Extreal.Integration.Messaging.Common",
         "UniTask",
         "UniRx"
     ],
