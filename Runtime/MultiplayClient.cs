@@ -260,15 +260,15 @@ namespace Extreal.Integration.Multiplay.Common
             return messagingClient.ConnectAsync(connectionConfig);
         }
 
-        public void Disconnect()
+        public UniTask DisconnectAsync()
         {
             CheckTransport();
 
             if (Logger.IsDebug())
             {
-                Logger.LogDebug(nameof(Disconnect));
+                Logger.LogDebug(nameof(DisconnectAsync));
             }
-            messagingClient.DisconnectAsync();
+            return messagingClient.DisconnectAsync();
         }
 
         public GameObject SpawnPlayer(Vector3 position = default, Quaternion rotation = default, Transform parent = default, string message = default)
