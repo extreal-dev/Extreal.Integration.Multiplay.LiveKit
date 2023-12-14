@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d3808746a2446378f00713b7905e246, type: 3}
+  m_Name: LoggingConfig
+  m_EditorClassIdentifier: 
+  categoryFilters: []
+  logFormats:
+  - category: SafeDisposer
+    color: {r: 1, g: 0.5137255, b: 0.46666667, a: 0}
+  - category: AssetDisposable
+    color: {r: 1, g: 0.5137255, b: 0.46666667, a: 0}
+  - category: StageNavigator
+    color: {r: 0.6156863, g: 0.88235295, b: 0.43529412, a: 0}
+  - category: VivoxClient
+    color: {r: 0.21176471, g: 0.84705883, b: 0.7176471, a: 0}
+  - category: NgoClient
+    color: {r: 0.3254902, g: 0.6862745, b: 1, a: 0}
+  - category: AppState
+    color: {r: 0.87058824, g: 0.43529412, b: 1, a: 0}
+  - category: AssetHelper
+    color: {r: 1, g: 0.45490196, b: 0.7372549, a: 0}
