@@ -1,15 +1,23 @@
-# Extreal.Integration.Multiplay.LiveKit
-## Local LiveKit Server Setup
-### Step 1: Download LiveKit Server
-Download the server binary file for your OS from [LiveKit Installation Guide](https://github.com/livekit/livekit#install).
+# Extreal.Integration.Multiplay.Common
 
-### Step 2: Start LiveKit Server
-Run the server in development mode:
-```bash
-livekit-server --dev
-```
-### Step 3: Start AccessToken Server
-In the `AccessTokenServer~` directory, launch the token server:
-```bash
-docker compose up -d
-```
+## How to test
+
+- todo
+
+## How to play the sample
+
+### Installation
+
+- Install this sample from Package Manager.
+- Add the asset to Addressables.
+    - Name: AvatarArmature
+    - Path: MVS/App/Avatars/AvatarArmature.prefab
+
+### How to play
+
+- Add all scenes in MVS folder to Build Settings.
+- Open multiple Unity editors using ParrelSync.
+- Start the server.
+    - todo
+- Start the client.
+    - Scene: MVS/App/App
