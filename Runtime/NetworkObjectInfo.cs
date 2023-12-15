@@ -21,12 +21,6 @@ namespace Extreal.Integration.Multiplay.Common
         [SerializeField] private Quaternion rotation;
         private Quaternion preRotation;
 
-        public DateTime CreatedAt { get; private set; }
-        [SerializeField] private long createdAt;
-
-        public DateTime UpdatedAt { get; private set; }
-        [SerializeField] private long updatedAt;
-
         private MultiplayPlayerInputValues values;
         [SerializeField] private string jsonOfValues;
 
@@ -37,16 +31,11 @@ namespace Extreal.Integration.Multiplay.Common
             this.rotation = rotation;
 
             ObjectGuid = Guid.NewGuid();
-            CreatedAt = DateTime.UtcNow;
-            UpdatedAt = DateTime.UtcNow;
         }
 
         public void OnBeforeSerialize()
         {
             objectId = ObjectGuid.ToString();
-
-            createdAt = CreatedAt.ToBinary();
-            updatedAt = UpdatedAt.ToBinary();
 
             if (values != null)
             {
@@ -55,18 +44,10 @@ namespace Extreal.Integration.Multiplay.Common
         }
 
         public void OnAfterDeserialize()
-        {
-            ObjectGuid = new Guid(objectId);
-
-            CreatedAt = DateTime.FromBinary(createdAt);
-            UpdatedAt = DateTime.FromBinary(updatedAt);
-        }
+            => ObjectGuid = new Guid(objectId);
 
         public bool CheckWhetherToSendData()
             => position != prePosition || rotation != preRotation || (values != null && values.CheckWhetherToSendData());
-
-        public void Updated()
-            => UpdatedAt = DateTime.UtcNow;
 
         public void GetTransformFrom(Transform transform)
         {
