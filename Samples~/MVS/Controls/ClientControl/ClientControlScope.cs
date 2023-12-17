@@ -1,6 +1,4 @@
-﻿using Extreal.Integration.Multiplay.Common.MVS.App.AssetWorkflow;
-using Extreal.Integration.Multiplay.Common;
-using UnityEngine;
+﻿using UnityEngine;
 using VContainer;
 using VContainer.Unity;
 using Extreal.Integration.Messaging.Redis;
@@ -15,10 +13,6 @@ namespace Extreal.Integration.Multiplay.Common.MVS.Controls.ClientControl
 
         protected override void Configure(IContainerBuilder builder)
         {
-            var assetHelper = Parent.Container.Resolve<AssetHelper>();
-
-            // builder.Register<GroupManager>(Lifetime.Singleton);
-
             var redisMessagingConfig = new RedisMessagingConfig("http://localhost:3030", new SocketIOOptions { EIO = EngineIO.V4 });
             var redisMessagingTransport = RedisMessagingTransportProvider.Provide(redisMessagingConfig);
 

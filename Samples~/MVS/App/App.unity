@@ -132,7 +132,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1287753623}
-  - component: {fileID: 1287753622}
+  - component: {fileID: 1287753624}
   m_Layer: 0
   m_Name: Scope
   m_TagString: Untagged
@@ -140,26 +140,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1287753622
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1287753621}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6b0ffd8774e7459ba35d0677e85065e4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  parentReference:
-    TypeName: 
-  autoRun: 1
-  autoInjectGameObjects: []
-  appConfig: {fileID: 11400000, guid: 1db807f7f1224324eab1d80f4b9cba67, type: 2}
-  loggingConfig: {fileID: 11400000, guid: 4ea8b9c6d5a9395468e5ddfeb77fc270, type: 2}
-  stageConfig: {fileID: 11400000, guid: d1b93e8ee48890443a2040ea71dba396, type: 2}
-  appUsageConfig: {fileID: 11400000, guid: fdfb17314e79c5748898a450bcc807fe, type: 2}
 --- !u!4 &1287753623
 Transform:
   m_ObjectHideFlags: 0
@@ -175,3 +155,20 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1287753624
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1287753621}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2f9ee6f34daa6784cb9b070d1ac2506b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  parentReference:
+    TypeName: 
+  autoRun: 1
+  autoInjectGameObjects: []
+  stageConfig: {fileID: 11400000, guid: 49294f87103e2a341af99bfc62e5c330, type: 2}

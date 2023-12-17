@@ -7,7 +7,6 @@ using Extreal.Core.Common.System;
 using Extreal.Core.Logging;
 using Extreal.Integration.AssetWorkflow.Addressables;
 using Extreal.Integration.Messaging.Common;
-using Extreal.Integration.Multiplay.Common;
 using Extreal.Integration.Multiplay.Common.MVS.App;
 using Extreal.Integration.Multiplay.Common.MVS.App.AssetWorkflow;
 using Extreal.Integration.Multiplay.Common.MVS.App.Avatars;
@@ -38,7 +37,7 @@ namespace Extreal.Integration.Multiplay.Common.MVS.Controls.MassivelyMultiplyCon
         private readonly Dictionary<string, AssetDisposable<GameObject>> loadedAvatars
             = new Dictionary<string, AssetDisposable<GameObject>>();
 
-        private IReadOnlyDictionary<string, NetworkClient> ConnectedClients => multiplayClient.ConnectedClients;
+        private IReadOnlyDictionary<string, NetworkClient> ConnectedClients => multiplayClient.ConnectedUsers;
 
         private RedisThirdPersonController myAvatar;
 

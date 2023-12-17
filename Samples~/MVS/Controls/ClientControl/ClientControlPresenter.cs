@@ -1,6 +1,5 @@
 ﻿using Cysharp.Threading.Tasks;
 using Extreal.Core.StageNavigation;
-using Extreal.Integration.Multiplay.Common;
 using Extreal.Integration.Multiplay.Common.MVS.App;
 using Extreal.Integration.Multiplay.Common.MVS.App.Config;
 using Extreal.Integration.Multiplay.Common.MVS.App.Stages;

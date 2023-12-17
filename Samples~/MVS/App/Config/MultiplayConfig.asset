@@ -9,9 +9,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2bfcdf6ca3c38324b867d93472b881dc, type: 3}
+  m_Script: {fileID: 11500000, guid: 6e5de1ef091ddaf468fb7b21175d7ca8, type: 3}
   m_Name: MultiplayConfig
   m_EditorClassIdentifier: 
   hostMaxCapacity: 10
-  clientTimeoutSeconds: 60
-  clientMaxRetryCount: 1
+  clientTimeoutSeconds: 5
+  clientMaxRetryCount: 3

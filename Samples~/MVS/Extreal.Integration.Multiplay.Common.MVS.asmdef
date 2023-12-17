@@ -19,7 +19,6 @@
         "Extreal.Core.Common",
         "Extreal.Integration.AssetWorkflow.Addressables",
         "Extreal.Integration.Web.Common",
-        "Extreal.Integration.P2P.WebRTC",
         "Extreal.Integration.Multiplay.Common",
         "Extreal.Integration.Messaging.Common",
         "Extreal.Integration.Messaging.Redis"

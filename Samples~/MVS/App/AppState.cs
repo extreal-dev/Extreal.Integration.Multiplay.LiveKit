@@ -3,9 +3,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Extreal.Core.Common.System;
 using Extreal.Core.Logging;
-using Extreal.Integration.P2P.WebRTC;
-using Extreal.Integration.Multiplay.Common.MVS.App.Config;
-using Extreal.Integration.Multiplay.Common.MVS.Screens.ConfirmationScreen;
 using UniRx;
 
 namespace Extreal.Integration.Multiplay.Common.MVS.App
@@ -15,12 +12,12 @@ namespace Extreal.Integration.Multiplay.Common.MVS.App
     {
         private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(AppState));
 
-        private PeerRole role = PeerRole.Host;
+        private UserRole role = UserRole.Host;
         private CommunicationMode communicationMode = CommunicationMode.Massively;
 
         public string PlayerName { get; private set; } = "Guest";
-        public bool IsHost => role == PeerRole.Host;
-        public bool IsClient => role == PeerRole.Client;
+        public bool IsHost => role == UserRole.Host;
+        public bool IsClient => role == UserRole.Client;
         public bool IsMassivelyForCommunication => communicationMode == CommunicationMode.Massively;
         public string GroupName { get; private set; } // Host only
         public string GroupId { get; private set; } // Client only
@@ -37,9 +34,6 @@ namespace Extreal.Integration.Multiplay.Common.MVS.App
 
         public IObservable<string> OnNotificationReceived => onNotificationReceived.AddTo(disposables);
         private readonly Subject<string> onNotificationReceived = new Subject<string>();
-
-        public IObservable<Confirmation> OnConfirmationReceived => onConfirmationReceived.AddTo(disposables);
-        private readonly Subject<Confirmation> onConfirmationReceived = new Subject<Confirmation>();
 
         private readonly CompositeDisposable disposables = new CompositeDisposable();
 
@@ -80,14 +74,13 @@ namespace Extreal.Integration.Multiplay.Common.MVS.App
         }
 
         public void SetPlayerName(string playerName) => PlayerName = playerName;
-        public void SetRole(PeerRole role) => this.role = role;
+        public void SetRole(UserRole role) => this.role = role;
         public void SetCommunicationMode(CommunicationMode communicationMode) => this.communicationMode = communicationMode;
         public void SetGroupName(string groupName) => GroupName = groupName;
         public void SetGroupId(string groupId) => GroupId = groupId;
         public void SetSpaceName(string spaceName) => SpaceName = spaceName;
         public void SetMultiplayReady(bool ready) => multiplayReady.Value = ready;
         public void SetSpaceReady(bool ready) => spaceReady.Value = ready;
-        public void SetStage(StageName stageName) => StageState = new StageState(stageName);
 
         public void Notify(string message)
         {
@@ -95,15 +88,13 @@ namespace Extreal.Integration.Multiplay.Common.MVS.App
             onNotificationReceived.OnNext(message);
         }
 
-        public void Confirm(Confirmation confirmation)
-        {
-            if (Logger.IsDebug())
-            {
-                Logger.LogDebug($"Confirmation received: {confirmation.Message}");
-            }
-            onConfirmationReceived.OnNext(confirmation);
-        }
-
         protected override void ReleaseManagedResources() => disposables.Dispose();
+    }
+
+    public enum UserRole
+    {
+        None = 0,
+        Host = 1,
+        Client = 2,
     }
 }

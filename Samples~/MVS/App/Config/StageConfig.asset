@@ -9,12 +9,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e9cb3eb76981472e890e2be2f66bd559, type: 3}
+  m_Script: {fileID: 11500000, guid: a60e8fe39bf784747a3799a2d39b866b, type: 3}
   m_Name: StageConfig
   m_EditorClassIdentifier: 
-  commonScenes: 640000006700000065000000cb00000066000000
+  commonScenes: 64000000670000006500000066000000cc000000
   stages:
   - stageName: 102
     sceneNames: 6b000000ca000000
   - stageName: 200
-    sceneNames: 6b000000700000002c0100006c000000
+    sceneNames: 6c0000002c010000700000006b000000

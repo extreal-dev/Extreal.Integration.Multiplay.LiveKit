@@ -2,7 +2,6 @@
 using Cysharp.Threading.Tasks;
 using Extreal.Core.StageNavigation;
 using Extreal.Integration.Messaging.Common;
-using Extreal.Integration.P2P.WebRTC;
 using Extreal.Integration.Multiplay.Common.MVS.App;
 using Extreal.Integration.Multiplay.Common.MVS.App.Config;
 using Extreal.Integration.Multiplay.Common.MVS.App.Stages;
@@ -80,7 +79,7 @@ namespace Extreal.Integration.Multiplay.Common.MVS.Screens.GroupSelectionScreen
         )
         {
             groupSelectionScreenView.Initialize();
-            var role = appState.IsHost ? PeerRole.Host : PeerRole.Client;
+            var role = appState.IsHost ? UserRole.Host : UserRole.Client;
             var communicationMode = CommunicationMode.Massively;
             groupSelectionScreenView.SetInitialValues(role, communicationMode);
         }
