@@ -3,13 +3,31 @@ using UnityEngine;
 
 namespace Extreal.Integration.Multiplay.Common
 {
+    /// <summary>
+    /// Class that holds users and the objects they own.
+    /// </summary>
     public class NetworkClient
     {
+        /// <summary>
+        /// User ID.
+        /// </summary>
         public string UserId { get; }
+
+        /// <summary>
+        /// Player object to be spawned.
+        /// </summary>
         public GameObject PlayerObject { get; private set; }
+
+        /// <summary>
+        /// Objects to be spawned.
+        /// </summary>
         public IReadOnlyList<GameObject> NetworkObjects => networkObjects;
         private readonly List<GameObject> networkObjects = new List<GameObject>();
 
+        /// <summary>
+        /// Creates a new NetworkClient.
+        /// </summary>
+        /// <param name="userId">User ID.</param>
         public NetworkClient(string userId)
             => UserId = userId;
 

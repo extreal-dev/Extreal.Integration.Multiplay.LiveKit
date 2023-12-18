@@ -11,31 +11,78 @@ using UnityEngine.SceneManagement;
 
 namespace Extreal.Integration.Multiplay.Common
 {
+    /// <summary>
+    /// Class for group multiplayer.
+    /// </summary>
     public class MultiplayClient : MonoBehaviour
     {
         [SerializeField] private GameObject playerObject;
         [SerializeField] private GameObject[] networkObjects;
 
+        /// <summary>
+        /// Local client.
+        /// </summary>
         public NetworkClient LocalClient { get; private set; }
 
+        /// <summary>
+        /// Connected users.
+        /// <para>Key: User ID.</para>
+        /// <para>Value: Network client.</para>
+        /// </summary>
         public IReadOnlyDictionary<string, NetworkClient> ConnectedUsers => connectedUsers;
         private readonly Dictionary<string, NetworkClient> connectedUsers = new Dictionary<string, NetworkClient>();
 
+        /// <summary>
+        /// <para>Invokes immediately after this client connects to a group.</para>
+        /// Arg: User ID of this client.
+        /// </summary>
         public IObservable<string> OnConnected => messagingClient.OnConnected;
+
+        /// <summary>
+        /// <para>Invokes just before this client disconnects from a group.</para>
+        /// Arg: reason why this client disconnects.
+        /// </summary>
         public IObservable<string> OnDisconnecting => messagingClient.OnDisconnecting;
+
+        /// <summary>
+        /// <para>Invokes immediately after this client unexpectedly disconnects from the server.</para>
+        /// Arg: reason why this client disconnects.
+        /// </summary>
         public IObservable<string> OnUnexpectedDisconnected => messagingClient.OnUnexpectedDisconnected;
+
+        /// <summary>
+        /// Invokes immediately after the connection approval is rejected.
+        /// </summary>
         public IObservable<Unit> OnConnectionApprovalRejected => messagingClient.OnConnectionApprovalRejected;
 
+        /// <summary>
+        /// <para>Invokes immediately after a user connects to a group.</para>
+        /// Arg: ID of the connected user.
+        /// </summary>
         public IObservable<string> OnUserConnected => onUserConnected;
         [SuppressMessage("Usage", "CC0033")]
         private readonly Subject<string> onUserConnected = new Subject<string>();
 
-        public IObservable<string> OnUserDisconnected => messagingClient.OnUserDisconnecting;
+        /// <summary>
+        /// <para>Invokes just before a user disconnects from a group.</para>
+        /// Arg: ID of the disconnected user.
+        /// </summary>
+        public IObservable<string> OnUserDisconnecting => messagingClient.OnUserDisconnecting;
 
-        public IObservable<(string userId, GameObject networkObject, string message)> OnObjectSpawned => onObjectSpawned;
+        /// <summary>
+        /// <para>Invokes immediately after an object is spawned.</para>
+        /// <para>Arg1: ID of the user that spawns this object.</para>
+        /// <para>Arg2: Spawned object.</para>
+        /// <para>Arg3: Message added to the spawn of this object. Null if not added.</para>
+        /// </summary>
+        public IObservable<(string userId, GameObject spawnedObject, string message)> OnObjectSpawned => onObjectSpawned;
         [SuppressMessage("Usage", "CC0033")]
         private readonly Subject<(string, GameObject, string)> onObjectSpawned = new Subject<(string, GameObject, string)>();
 
+        /// <summary>
+        /// <para>Invokes immediately after the message is received.</para>
+        /// Arg: ID of the user sending the message and the message.
+        /// </summary>
         public IObservable<(string from, string message)> OnMessageReceived => onMessageReceived;
         [SuppressMessage("Usage", "CC0033")]
         private readonly Subject<(string, string)> onMessageReceived = new Subject<(string, string)>();
@@ -76,6 +123,11 @@ namespace Extreal.Integration.Multiplay.Common
             networkObjectPrefabs.Add(selfInstanceId, go);
         }
 
+        /// <summary>
+        /// Sets a messaging client.
+        /// </summary>
+        /// <param name="messagingClient">QueuingMessagingClient</param>
+        /// <exception cref="ArgumentNullException">When messagingClient is null.</exception>
         public void SetMessagingClient(QueuingMessagingClient messagingClient)
         {
             if (messagingClient == null)
@@ -257,18 +309,33 @@ namespace Extreal.Integration.Multiplay.Common
             }
         }
 
+        /// <summary>
+        /// Connects to a group.
+        /// </summary>
+        /// <param name="connectionConfig">Connection Config.</param>
         public UniTask ConnectAsync(MessagingConnectionConfig connectionConfig)
         {
-            CheckTransport();
+            CheckMessagingClient();
             return messagingClient.ConnectAsync(connectionConfig);
         }
 
+        /// <summary>
+        /// Disconnects from a group.
+        /// </summary>
         public UniTask DisconnectAsync()
         {
-            CheckTransport();
+            CheckMessagingClient();
             return messagingClient.DisconnectAsync();
         }
 
+        /// <summary>
+        /// Spawns a player object set to this instance.
+        /// </summary>
+        /// <param name="position">Initial position of the player object when it is spawned.</param>
+        /// <param name="rotation">Initial rotation of the player object when it is spawned.</param>
+        /// <param name="parent">Parent to be set to the player object.</param>
+        /// <param name="message">Message to be publish with spawned object when the player object is spawned.</param>
+        /// <returns>Spawned object.</returns>
         public GameObject SpawnPlayer(Vector3 position = default, Quaternion rotation = default, Transform parent = default, string message = default)
         {
             if (playerObject == null)
@@ -281,6 +348,15 @@ namespace Extreal.Integration.Multiplay.Common
             return SpawnInternal(playerObject, networkObjectInfo, LocalClient.SetPlayerObject, LocalClient.UserId, parent, message);
         }
 
+        /// <summary>
+        /// Spawns an object.
+        /// </summary>
+        /// <param name="objectPrefab">Prefab of the object to be spawned.</param>
+        /// <param name="position">Initial position of the object when it is spawned.</param>
+        /// <param name="rotation">Initial rotation of the object when it is spawned.</param>
+        /// <param name="parent">Parent to be set to the object.</param>
+        /// <param name="message">Message to be publish with spawned object when the object is spawned.</param>
+        /// <returns></returns>
         public GameObject SpawnObject(GameObject objectPrefab, Vector3 position = default, Quaternion rotation = default, Transform parent = default, string message = default)
         {
             if (objectPrefab == null)
@@ -308,7 +384,7 @@ namespace Extreal.Integration.Multiplay.Common
             string message = default
         )
         {
-            CheckTransport();
+            CheckMessagingClient();
 
             var spawnedObject = Instantiate(prefab, networkObjectInfo.Position, networkObjectInfo.Rotation, parent);
             setToNetworkClient.Invoke(spawnedObject);
@@ -324,9 +400,17 @@ namespace Extreal.Integration.Multiplay.Common
             return spawnedObject;
         }
 
+        /// <summary>
+        /// Sends a message.
+        /// </summary>
+        /// <param name="message">Message to be sent.</param>
+        /// <param name="to">
+        ///     User ID of the destination.
+        ///     <para>Sends a message to the entire group if not specified.</para>
+        /// </param>
         public void SendMessage(string message, string to = default)
         {
-            CheckTransport();
+            CheckMessagingClient();
 
             if (string.IsNullOrEmpty(message))
             {
@@ -376,7 +460,7 @@ namespace Extreal.Integration.Multiplay.Common
             return default;
         }
 
-        private void CheckTransport()
+        private void CheckMessagingClient()
         {
             if (messagingClient == null)
             {

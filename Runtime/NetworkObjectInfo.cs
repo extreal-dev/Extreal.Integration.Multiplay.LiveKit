@@ -67,7 +67,7 @@ namespace Extreal.Integration.Multiplay.Common
 
             var typeOfValues = input.Values.GetType();
             values = JsonUtility.FromJson(jsonOfValues, typeOfValues) as MultiplayPlayerInputValues;
-            input.SetValues(values);
+            input.ApplyValues(values);
         }
 
         public void GetValuesFrom(in MultiplayPlayerInput input)
