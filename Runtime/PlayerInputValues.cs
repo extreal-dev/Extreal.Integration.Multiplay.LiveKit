@@ -7,7 +7,7 @@ namespace Extreal.Integration.Multiplay.Common
     /// Class that holds player input values.
     /// </summary>
     [Serializable]
-    public class MultiplayPlayerInputValues
+    public class PlayerInputValues
     {
         /// <summary>
         /// Move direction to be input.

@@ -14,11 +14,6 @@ namespace Extreal.Integration.Multiplay.Common
         public string UserId { get; }
 
         /// <summary>
-        /// Player object to be spawned.
-        /// </summary>
-        public GameObject PlayerObject { get; private set; }
-
-        /// <summary>
         /// Objects to be spawned.
         /// </summary>
         public IReadOnlyList<GameObject> NetworkObjects => networkObjects;
@@ -30,9 +25,6 @@ namespace Extreal.Integration.Multiplay.Common
         /// <param name="userId">User ID.</param>
         public NetworkClient(string userId)
             => UserId = userId;
-
-        internal void SetPlayerObject(GameObject playerObject)
-            => PlayerObject = playerObject;
 
         internal void AddNetworkObject(GameObject networkObject)
             => networkObjects.Add(networkObject);

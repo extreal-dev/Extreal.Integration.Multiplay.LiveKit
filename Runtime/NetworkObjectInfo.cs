@@ -21,7 +21,7 @@ namespace Extreal.Integration.Multiplay.Common
         [SerializeField] private Quaternion rotation;
         private Quaternion preRotation;
 
-        private MultiplayPlayerInputValues values;
+        private PlayerInputValues values;
         [SerializeField] private string jsonOfValues;
 
         public NetworkObjectInfo(int gameObjectHash, Vector3 position, Quaternion rotation)
@@ -58,7 +58,7 @@ namespace Extreal.Integration.Multiplay.Common
             rotation = transform.rotation;
         }
 
-        public void ApplyValuesTo(in MultiplayPlayerInput input)
+        public void ApplyValuesTo(in PlayerInput input)
         {
             if (string.IsNullOrEmpty(jsonOfValues))
             {
@@ -66,11 +66,11 @@ namespace Extreal.Integration.Multiplay.Common
             }
 
             var typeOfValues = input.Values.GetType();
-            values = JsonUtility.FromJson(jsonOfValues, typeOfValues) as MultiplayPlayerInputValues;
+            values = JsonUtility.FromJson(jsonOfValues, typeOfValues) as PlayerInputValues;
             input.ApplyValues(values);
         }
 
-        public void GetValuesFrom(in MultiplayPlayerInput input)
+        public void GetValuesFrom(in PlayerInput input)
             => values = input.Values;
     }
 }
