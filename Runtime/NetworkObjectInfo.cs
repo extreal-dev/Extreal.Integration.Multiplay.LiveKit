@@ -60,11 +60,6 @@ namespace Extreal.Integration.Multiplay.Common
 
         public void ApplyValuesTo(in PlayerInput input)
         {
-            if (string.IsNullOrEmpty(jsonOfValues))
-            {
-                return;
-            }
-
             var typeOfValues = input.Values.GetType();
             values = JsonUtility.FromJson(jsonOfValues, typeOfValues) as PlayerInputValues;
             input.ApplyValues(values);

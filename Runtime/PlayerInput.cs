@@ -8,10 +8,10 @@ namespace Extreal.Integration.Multiplay.Common
     public class PlayerInput : MonoBehaviour
     {
         /// <summary>
-        /// Player input value to be synchronized among all users in the same group.
+        /// Player input values to be synchronized among all users in the same group.
         /// </summary>
         public virtual PlayerInputValues Values => values;
-        private PlayerInputValues values;
+        private readonly PlayerInputValues values = new PlayerInputValues();
 
         /// <summary>
         /// Sets move value.
@@ -21,7 +21,7 @@ namespace Extreal.Integration.Multiplay.Common
             => Values.SetMove(newMoveDirection);
 
         /// <summary>
-        /// Applies values from other user to local object.
+        /// Applies values from other users to local objects.
         /// </summary>
         /// <param name="synchronizedValues">Values sent from other user.</param>
         public virtual void ApplyValues(PlayerInputValues synchronizedValues)

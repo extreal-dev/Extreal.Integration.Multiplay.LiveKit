@@ -8,7 +8,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using UniRx;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace Extreal.Integration.Multiplay.Common
 {
@@ -23,7 +22,7 @@ namespace Extreal.Integration.Multiplay.Common
         public NetworkClient LocalClient { get; private set; }
 
         /// <summary>
-        /// Connected users.
+        /// Joined users.
         /// <para>Key: User ID.</para>
         /// <para>Value: Network client.</para>
         /// </summary>
@@ -31,39 +30,39 @@ namespace Extreal.Integration.Multiplay.Common
         private readonly Dictionary<string, NetworkClient> joinedUsers = new Dictionary<string, NetworkClient>();
 
         /// <summary>
-        /// <para>Invokes immediately after this client connects to a group.</para>
+        /// <para>Invokes immediately after this client joins a group.</para>
         /// Arg: User ID of this client.
         /// </summary>
         public IObservable<string> OnJoined => messagingClient.OnJoined;
 
         /// <summary>
-        /// <para>Invokes just before this client disconnects from a group.</para>
-        /// Arg: reason why this client disconnects.
+        /// <para>Invokes just before this client leaves a group.</para>
+        /// Arg: reason why this client leaves.
         /// </summary>
         public IObservable<string> OnLeaving => messagingClient.OnLeaving;
 
         /// <summary>
-        /// <para>Invokes immediately after this client unexpectedly disconnects from the server.</para>
-        /// Arg: reason why this client disconnects.
+        /// <para>Invokes immediately after this client unexpectedly leaves a group.</para>
+        /// Arg: reason why this client leaves.
         /// </summary>
         public IObservable<string> OnUnexpectedLeft => messagingClient.OnUnexpectedLeft;
 
         /// <summary>
-        /// Invokes immediately after the connection approval is rejected.
+        /// Invokes immediately after the joining approval is rejected.
         /// </summary>
         public IObservable<Unit> OnJoiningApprovalRejected => messagingClient.OnJoiningApprovalRejected;
 
         /// <summary>
-        /// <para>Invokes immediately after a user connects to a group.</para>
-        /// Arg: ID of the connected user.
+        /// <para>Invokes immediately after a user joins the group this client joined.</para>
+        /// Arg: ID of the joined user.
         /// </summary>
         public IObservable<string> OnUserJoined => onUserJoined;
         [SuppressMessage("Usage", "CC0033")]
         private readonly Subject<string> onUserJoined = new Subject<string>();
 
         /// <summary>
-        /// <para>Invokes just before a user disconnects from a group.</para>
-        /// Arg: ID of the disconnected user.
+        /// <para>Invokes just before a user leaves the group this client joined.</para>
+        /// Arg: ID of the left user.
         /// </summary>
         public IObservable<string> OnUserLeaving => messagingClient.OnUserLeaving;
 
@@ -98,12 +97,17 @@ namespace Extreal.Integration.Multiplay.Common
         /// Creates a new MultiplayClient.
         /// </summary>
         /// <param name="messagingClient">QueuingMessagingClient.</param>
-        /// <exception cref="ArgumentNullException">When messagingClient is null.</exception>
+        /// <param name="networkObjectsProvider">NetworkObjectsProvider that implements INetworkObjectsProvider.</param>
+        /// <exception cref="ArgumentNullException">When messagingClient or networkObjectsProvider is null.</exception>
         public MultiplayClient(QueuingMessagingClient messagingClient, INetworkObjectsProvider networkObjectsProvider)
         {
             if (messagingClient == null)
             {
                 throw new ArgumentNullException(nameof(messagingClient));
+            }
+            if (networkObjectsProvider == null)
+            {
+                throw new ArgumentNullException(nameof(networkObjectsProvider));
             }
 
             onObjectSpawned.AddTo(disposables);
@@ -157,7 +161,7 @@ namespace Extreal.Integration.Multiplay.Common
 
         private void AddToNetworkObjectPrefabs(GameObject go)
         {
-            var selfInstanceId = GetGameObjectHash(go);
+            var selfInstanceId = MultiplayUtil.GetGameObjectHash(go);
             networkObjectPrefabs.Add(selfInstanceId, go);
         }
 
@@ -222,10 +226,6 @@ namespace Extreal.Integration.Multiplay.Common
             {
                 (var from, var messageJson) = messagingClient.DequeueResponse();
                 var message = JsonUtility.FromJson<MultiplayMessage>(messageJson);
-                if (localNetworkObjectInfos.ContainsKey(message.NetworkObjectInfo.ObjectGuid))
-                {
-                    continue;
-                }
 
                 if (message.Command is MultiplayMessageCommand.Create)
                 {
@@ -290,14 +290,22 @@ namespace Extreal.Integration.Multiplay.Common
         }
 
         /// <summary>
-        /// Connects to a group.
+        /// Joins a group.
         /// </summary>
-        /// <param name="connectionConfig">Connection Config.</param>
-        public UniTask JoinAsync(MultiplayJoiningConfig connectionConfig)
-            => messagingClient.JoinAsync(connectionConfig.MessagingJoiningConfig);
+        /// <param name="joiningConfig">Joining Config.</param>
+        /// <exception cref="ArgumentNullException">When joiningConfig is null.</exception>
+        public UniTask JoinAsync(MultiplayJoiningConfig joiningConfig)
+        {
+            if (joiningConfig == null)
+            {
+                throw new ArgumentNullException(nameof(joiningConfig));
+            }
+
+            return messagingClient.JoinAsync(joiningConfig.MessagingJoiningConfig);
+        }
 
         /// <summary>
-        /// Disconnects from a group.
+        /// Leaves a group.
         /// </summary>
         public UniTask LeaveAsync()
             => messagingClient.LeaveAsync();
@@ -310,7 +318,9 @@ namespace Extreal.Integration.Multiplay.Common
         /// <param name="rotation">Initial rotation of the object when it is spawned.</param>
         /// <param name="parent">Parent to be set to the object.</param>
         /// <param name="message">Message to be publish with spawned object when the object is spawned.</param>
-        /// <returns></returns>
+        /// <exception cref="ArgumentNullException">When objectPrefab is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">When not specified any of the objects that INetworkObjectsProvider provides.</exception>
+        /// <returns>Spawned object.</returns>
         public GameObject SpawnObject(GameObject objectPrefab, Vector3 position = default, Quaternion rotation = default, Transform parent = default, string message = default)
         {
             if (objectPrefab == null)
@@ -318,10 +328,10 @@ namespace Extreal.Integration.Multiplay.Common
                 throw new ArgumentNullException(nameof(objectPrefab));
             }
 
-            var gameObjectHash = GetGameObjectHash(objectPrefab);
+            var gameObjectHash = MultiplayUtil.GetGameObjectHash(objectPrefab);
             if (!networkObjectPrefabs.ContainsKey(gameObjectHash))
             {
-                throw new ArgumentOutOfRangeException(nameof(objectPrefab), "Specify any of the objects you have added to the networkObjects of this instance");
+                throw new ArgumentOutOfRangeException(nameof(objectPrefab), "Specify any of the objects that INetworkObjectsProvider provides");
             }
 
             var networkObjectInfo = new NetworkObjectInfo(gameObjectHash, position, rotation);
@@ -360,6 +370,7 @@ namespace Extreal.Integration.Multiplay.Common
         ///     User ID of the destination.
         ///     <para>Sends a message to the entire group if not specified.</para>
         /// </param>
+        /// <exception cref="ArgumentNullException">When message is null.</exception>
         public void SendMessage(string message, string to = default)
         {
             if (string.IsNullOrEmpty(message))
@@ -369,45 +380,6 @@ namespace Extreal.Integration.Multiplay.Common
 
             var messageJson = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Message, message: message));
             messagingClient.EnqueueRequest(messageJson, to);
-        }
-
-        private static int GetGameObjectHash(GameObject target)
-        {
-            var id = GetHierarchyPath(target);
-            return id.GetHashCode();
-        }
-
-        private static string GetHierarchyPath(GameObject target)
-        {
-            var path = string.Empty;
-            var current = target.transform;
-
-            while (current != null)
-            {
-                var index = current.GetSiblingIndex();
-                path = "/" + current.name + index + path;
-                current = current.parent;
-            }
-            var belongScene = GetBelongScene(target);
-            return "/" + belongScene.name + path;
-        }
-
-        private static Scene GetBelongScene(GameObject target)
-        {
-            for (var i = 0; i < SceneManager.sceneCount; i++)
-            {
-                var scene = SceneManager.GetSceneAt(i);
-                if (!scene.IsValid() || !scene.isLoaded)
-                {
-                    continue;
-                }
-                var roots = scene.GetRootGameObjects();
-                if (roots.Contains(target.transform.root.gameObject))
-                {
-                    return scene;
-                }
-            }
-            return default;
         }
     }
 }

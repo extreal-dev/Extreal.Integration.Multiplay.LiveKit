@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 
 namespace Extreal.Integration.Multiplay.Common
@@ -23,6 +24,7 @@ namespace Extreal.Integration.Multiplay.Common
         /// Creates a new NetworkClient.
         /// </summary>
         /// <param name="userId">User ID.</param>
+        [SuppressMessage("Usage", "CC0057")]
         public NetworkClient(string userId)
             => UserId = userId;
 
