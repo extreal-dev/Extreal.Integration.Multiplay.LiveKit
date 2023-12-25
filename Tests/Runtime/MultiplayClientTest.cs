@@ -147,7 +147,7 @@ namespace Extreal.Integration.Multiplay.Common.Test
         {
             Assert.That(eventHandler.LeavingReason, Is.Null);
             await multiplayClient.LeaveAsync();
-            Assert.That(eventHandler.LeavingReason, Is.EqualTo("disconnect request"));
+            Assert.That(eventHandler.LeavingReason, Is.EqualTo("leave request"));
         });
 
         [Test]

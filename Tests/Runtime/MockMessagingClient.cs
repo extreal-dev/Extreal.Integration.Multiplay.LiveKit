@@ -2,7 +2,6 @@ using System;
 using Cysharp.Threading.Tasks;
 using Extreal.Core.Logging;
 using Extreal.Integration.Messaging.Common;
-using UniRx;
 using UnityEngine;
 
 namespace Extreal.Integration.Multiplay.Common.Test
@@ -14,15 +13,11 @@ namespace Extreal.Integration.Multiplay.Common.Test
         private GameObject objectPrefab;
         private NetworkObjectInfo networkObjectInfo;
 
-        private readonly CompositeDisposable disposables = new CompositeDisposable();
         private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(MockMessagingClient));
 
         public MockMessagingClient() : base()
         {
         }
-
-        protected override void DoReleaseManagedResources()
-            => disposables.Dispose();
 
 #pragma warning disable CS1998
         protected override async UniTask DoJoinAsync(MessagingJoiningConfig connectionConfig)
@@ -41,10 +36,7 @@ namespace Extreal.Integration.Multiplay.Common.Test
 #pragma warning disable CS1998
         protected override async UniTask DoLeaveAsync()
 #pragma warning restore CS1998
-        {
-            FireOnLeaving("disconnect request");
-            SetJoiningGroupStatus(false);
-        }
+            => SetJoiningGroupStatus(false);
 
 #pragma warning disable CS1998
         protected override async UniTask DoSendMessageAsync(string message, string to)
