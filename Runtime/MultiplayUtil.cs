@@ -2,7 +2,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace Extreal.Integration.Multiplay.Common
+namespace Extreal.Integration.Multiplay.Messaging
 {
     public static class MultiplayUtil
     {

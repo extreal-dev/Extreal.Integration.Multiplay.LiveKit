@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Extreal.Integration.Multiplay.Common
+namespace Extreal.Integration.Multiplay.Messaging
 {
     /// <summary>
     /// Class that handles player input.

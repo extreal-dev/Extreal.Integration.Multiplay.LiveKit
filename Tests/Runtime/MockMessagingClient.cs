@@ -1,10 +1,10 @@
 using System;
 using Cysharp.Threading.Tasks;
 using Extreal.Core.Logging;
-using Extreal.Integration.Messaging.Common;
+using Extreal.Integration.Messaging;
 using UnityEngine;
 
-namespace Extreal.Integration.Multiplay.Common.Test
+namespace Extreal.Integration.Multiplay.Messaging.Test
 {
     public class MockMessagingClient : MessagingClient
     {

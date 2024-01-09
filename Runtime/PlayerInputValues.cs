@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Extreal.Integration.Multiplay.Common
+namespace Extreal.Integration.Multiplay.Messaging
 {
     /// <summary>
     /// Class that holds player input values.

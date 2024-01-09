@@ -1,8 +1,8 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using Extreal.Integration.Messaging.Common;
+using Extreal.Integration.Messaging;
 
-namespace Extreal.Integration.Multiplay.Common
+namespace Extreal.Integration.Multiplay.Messaging
 {
     /// <summary>
     /// Class that holds joining config.

@@ -5,14 +5,14 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using Extreal.Core.Logging;
-using Extreal.Integration.Messaging.Common;
+using Extreal.Integration.Messaging;
 using NUnit.Framework;
 using UniRx;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
-namespace Extreal.Integration.Multiplay.Common.Test
+namespace Extreal.Integration.Multiplay.Messaging.Test
 {
     public class MultiplayClientTest
     {

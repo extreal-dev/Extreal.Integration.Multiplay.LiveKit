@@ -1,10 +1,10 @@
 {
-    "name": "Extreal.Integration.Multiplay.Common",
-    "rootNamespace": "Extreal.Integration.Multiplay.Common",
+    "name": "Extreal.Integration.Multiplay.Messaging",
+    "rootNamespace": "Extreal.Integration.Multiplay.Messaging",
     "references": [
         "Extreal.Core.Logging",
         "Extreal.Core.Common",
-        "Extreal.Integration.Messaging.Common",
+        "Extreal.Integration.Messaging",
         "UniTask",
         "UniRx"
     ],

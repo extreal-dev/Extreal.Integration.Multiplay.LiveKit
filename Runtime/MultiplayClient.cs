@@ -1,7 +1,7 @@
 using Cysharp.Threading.Tasks;
 using Extreal.Core.Common.System;
 using Extreal.Core.Logging;
-using Extreal.Integration.Messaging.Common;
+using Extreal.Integration.Messaging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -9,7 +9,7 @@ using System.Linq;
 using UniRx;
 using UnityEngine;
 
-namespace Extreal.Integration.Multiplay.Common
+namespace Extreal.Integration.Multiplay.Messaging
 {
     /// <summary>
     /// Class for group multiplayer.
@@ -281,11 +281,13 @@ namespace Extreal.Integration.Multiplay.Common
                     networkObjectInfo.ApplyValuesTo(in input);
                 }
 
-                if ((objectToBeUpdated.transform.position - networkObjectInfo.Position).sqrMagnitude > 0f)
+                if ((objectToBeUpdated.transform.position - networkObjectInfo.Position).sqrMagnitude > 0f ||
+                    Quaternion.Angle(objectToBeUpdated.transform.rotation, networkObjectInfo.Rotation) > 0f)
                 {
                     objectToBeUpdated.transform.position = networkObjectInfo.Position;
                     objectToBeUpdated.transform.rotation = networkObjectInfo.Rotation;
                 }
+
             }
         }
 

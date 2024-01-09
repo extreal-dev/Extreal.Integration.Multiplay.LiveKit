@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Extreal.Integration.Multiplay.Common.Test
+namespace Extreal.Integration.Multiplay.Messaging.Test
 {
     public class NetworkObjectsProvider : MonoBehaviour, INetworkObjectsProvider
     {

@@ -1,11 +1,11 @@
 {
-    "name": "Extreal.Integration.Multiplay.Common.Test",
-    "rootNamespace": "Extreal.Integration.Multiplay.Common.Test",
+    "name": "Extreal.Integration.Multiplay.Messaging.Test",
+    "rootNamespace": "Extreal.Integration.Multiplay.Messaging.Test",
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "Extreal.Integration.Multiplay.Common",
-        "Extreal.Integration.Messaging.Common",
+        "Extreal.Integration.Multiplay.Messaging",
+        "Extreal.Integration.Messaging",
         "Extreal.Core.Logging",
         "Extreal.Core.Common",
         "UniTask",

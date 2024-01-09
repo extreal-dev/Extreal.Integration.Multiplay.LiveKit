@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Extreal.Integration.Multiplay.Common
+namespace Extreal.Integration.Multiplay.Messaging
 {
     /// <summary>
     /// Interface for providing MultiplayClient with GameObjects to be synchronized over the network.

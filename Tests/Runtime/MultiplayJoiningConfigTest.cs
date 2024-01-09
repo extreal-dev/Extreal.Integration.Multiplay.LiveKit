@@ -1,7 +1,7 @@
 using System;
 using NUnit.Framework;
 
-namespace Extreal.Integration.Multiplay.Common.Test
+namespace Extreal.Integration.Multiplay.Messaging.Test
 {
     public class MultiplayJoiningConfigTest
     {
