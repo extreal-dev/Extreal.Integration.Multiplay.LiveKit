@@ -11,7 +11,7 @@ namespace Extreal.Integration.Multiplay.Common
         /// <summary>
         /// provides GameObjects to be synchronized over the network.
         /// </summary>
-        /// <returns>GameObjects to be synchronized over the network.</returns>
+        /// <returns>List<GameObject> to be synchronized over the network.</returns>
         List<GameObject> Provide();
     }
 }
