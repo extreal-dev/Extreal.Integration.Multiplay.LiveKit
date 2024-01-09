@@ -6,7 +6,8 @@
         "Extreal.Core.Common",
         "Extreal.Integration.Messaging",
         "UniTask",
-        "UniRx"
+        "UniRx",
+        "Extreal.Framework.Analyzer"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
