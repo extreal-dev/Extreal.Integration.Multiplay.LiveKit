@@ -2,7 +2,6 @@
     "name": "Extreal.Integration.Multiplay.Common",
     "rootNamespace": "Extreal.Integration.Multiplay.Common",
     "references": [
-        "Extreal.SampleApp.Holiday.Analyzer",
         "Extreal.Core.Logging",
         "Extreal.Core.Common",
         "Extreal.Integration.Messaging.Common",
