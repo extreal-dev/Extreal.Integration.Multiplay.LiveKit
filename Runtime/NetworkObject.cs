@@ -5,13 +5,13 @@ using System.Diagnostics.CodeAnalysis;
 namespace Extreal.Integration.Multiplay.Messaging
 {
     [Serializable]
-    public class NetworkObjectInfo : ISerializationCallbackReceiver
+    public class NetworkObject : ISerializationCallbackReceiver
     {
         public Guid ObjectGuid { get; private set; }
         [SerializeField] private string objectId;
 
-        public int GameObjectHash => gameObjectHash;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private int gameObjectHash;
+        public string GameObjectKey => gameObjectKey;
+        [SerializeField, SuppressMessage("Usage", "CC0052")] private string gameObjectKey;
 
         public Vector3 Position => position;
         [SerializeField] private Vector3 position;
@@ -24,9 +24,9 @@ namespace Extreal.Integration.Multiplay.Messaging
         private PlayerInputValues values;
         [SerializeField] private string jsonOfValues;
 
-        public NetworkObjectInfo(int gameObjectHash, Vector3 position, Quaternion rotation)
+        public NetworkObject(string gameObjectKey, Vector3 position, Quaternion rotation)
         {
-            this.gameObjectHash = gameObjectHash;
+            this.gameObjectKey = gameObjectKey;
             this.position = position;
             this.rotation = rotation;
 

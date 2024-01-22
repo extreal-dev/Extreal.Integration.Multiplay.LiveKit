@@ -12,6 +12,6 @@ namespace Extreal.Integration.Multiplay.Messaging
         /// provides GameObjects to be synchronized over the network.
         /// </summary>
         /// <returns>List<GameObject> to be synchronized over the network.</returns>
-        List<GameObject> Provide();
+        Dictionary<string, GameObject> Provide();
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Extreal.Core.Logging;
 using Extreal.Integration.Messaging;
@@ -11,7 +12,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         private readonly string localUserId = Guid.NewGuid().ToString();
         private readonly string otherUserId = Guid.NewGuid().ToString();
         private GameObject objectPrefab;
-        private NetworkObjectInfo networkObjectInfo;
+        private NetworkObject networkObjectInfo;
 
         private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(MockMessagingClient));
 
@@ -58,10 +59,10 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             => FireOnUnexpectedLeft("unknown");
 
         public void FireOnUserJoined()
-            => FireOnUserJoined(otherUserId);
+            => FireOnClientJoined(otherUserId);
 
         public void FireOnUserLeaving()
-            => FireOnUserLeaving(otherUserId);
+            => FireOnClientLeaving(otherUserId);
 
         public void FireOnMessageReceived(string message)
         {
@@ -72,8 +73,8 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         public void SpawnObjectFromOthers(GameObject objectPrefab)
         {
             this.objectPrefab = objectPrefab;
-            var gameObjectHash = MultiplayUtil.GetGameObjectHash(this.objectPrefab);
-            networkObjectInfo = new NetworkObjectInfo(gameObjectHash, default, default);
+            const string gameObjectKey = "testKey";
+            networkObjectInfo = new NetworkObject(gameObjectKey, default, default);
             var messageJson = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo));
             FireOnMessageReceived(otherUserId, messageJson);
         }
@@ -90,21 +91,29 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
                 networkObjectInfo.GetValuesFrom(in input);
             }
 
-            var message = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Update, networkObjectInfos: new NetworkObjectInfo[] { networkObjectInfo }));
+            var message = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Update, networkObjectInfos: new NetworkObject[] { networkObjectInfo }));
             FireOnMessageReceived(otherUserId, message);
         }
 
         public void FireCreateExistedObjectFromOthers(GameObject objectPrefab)
         {
-            var gameObjectHash = MultiplayUtil.GetGameObjectHash(objectPrefab);
-            var networkObjectInfo = new NetworkObjectInfo(gameObjectHash, default, default);
-            var networkObjectInfos = new NetworkObjectInfo[] { networkObjectInfo };
+            const string gameObjectKey = "testKey";
+            var networkObjectInfo = new NetworkObject(gameObjectKey, default, default);
+            var networkObjectInfos = new NetworkObject[] { networkObjectInfo };
             var message = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.CreateExistedObject, networkObjectInfos: networkObjectInfos));
             FireOnMessageReceived(otherUserId, message);
         }
 
-        protected override UniTask<GroupListResponse> DoListGroupsAsync() => throw new NotImplementedException();
-        protected override UniTask<CreateGroupResponse> DoCreateGroupAsync(GroupConfig groupConfig) => throw new NotImplementedException();
-        public override UniTask DeleteGroupAsync(string groupName) => throw new NotImplementedException();
+        protected override UniTask<GroupListResponse> DoListGroupsAsync()
+        {
+            var group = new GroupResponse
+            {
+                Id = "TestId",
+                Name = "TestName"
+            };
+
+            var groups = new GroupListResponse { Groups = new List<GroupResponse> { group } };
+            return UniTask.FromResult(groups);
+        }
     }
 }
