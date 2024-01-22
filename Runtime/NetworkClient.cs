@@ -5,14 +5,14 @@ using UnityEngine;
 namespace Extreal.Integration.Multiplay.Messaging
 {
     /// <summary>
-    /// Class that holds users and the objects they own.
+    /// Class that holds clients and the objects they own.
     /// </summary>
     public class NetworkClient
     {
         /// <summary>
-        /// User ID.
+        /// Client ID.
         /// </summary>
-        public string UserId { get; }
+        public string ClientId { get; }
 
         /// <summary>
         /// Objects to be spawned.
@@ -23,10 +23,10 @@ namespace Extreal.Integration.Multiplay.Messaging
         /// <summary>
         /// Creates a new NetworkClient.
         /// </summary>
-        /// <param name="userId">User ID.</param>
+        /// <param name="clientId">Client ID.</param>
         [SuppressMessage("Usage", "CC0057")]
-        public NetworkClient(string userId)
-            => UserId = userId;
+        public NetworkClient(string clientId)
+            => ClientId = clientId;
 
         internal void AddNetworkObject(GameObject networkObject)
             => networkObjects.Add(networkObject);

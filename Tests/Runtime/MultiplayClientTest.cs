@@ -39,7 +39,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             multiplayClient = new MultiplayClient(queuingMessagingClient, networkObjectsProvider).AddTo(disposables);
 
             multiplayClient.OnJoined
-                .Subscribe(eventHandler.SetUserId)
+                .Subscribe(eventHandler.SetClientId)
                 .AddTo(disposables);
 
             multiplayClient.OnLeaving
@@ -54,12 +54,12 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
                 .Subscribe(_ => eventHandler.SetIsJoiningApprovalRejected(true))
                 .AddTo(disposables);
 
-            multiplayClient.OnUserJoined
-                .Subscribe(eventHandler.SetJoinedUserId)
+            multiplayClient.OnClientJoined
+                .Subscribe(eventHandler.SetJoinedClientId)
                 .AddTo(disposables);
 
-            multiplayClient.OnUserLeaving
-                .Subscribe(eventHandler.SetLeavingUserId)
+            multiplayClient.OnClientLeaving
+                .Subscribe(eventHandler.SetLeavingClientId)
                 .AddTo(disposables);
 
             multiplayClient.OnMessageReceived
@@ -113,18 +113,18 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             var messagingJoiningConfig = new MessagingJoiningConfig("MultiplayTest");
             var joiningConfig = new MultiplayJoiningConfig(messagingJoiningConfig);
 
-            Assert.That(eventHandler.UserId, Is.Null);
+            Assert.That(eventHandler.ClientId, Is.Null);
             Assert.That(multiplayClient.LocalClient, Is.Null);
-            Assert.That(multiplayClient.JoinedUsers.Count, Is.Zero);
+            Assert.That(multiplayClient.JoinedClients.Count, Is.Zero);
 
             await multiplayClient.JoinAsync(joiningConfig);
 
-            Assert.That(eventHandler.UserId, Is.Not.Null);
+            Assert.That(eventHandler.ClientId, Is.Not.Null);
             Assert.That(multiplayClient.LocalClient, Is.Not.Null);
-            Assert.That(multiplayClient.LocalClient.UserId, Is.EqualTo(eventHandler.UserId));
-            Assert.That(multiplayClient.JoinedUsers.Count, Is.EqualTo(1));
-            Assert.That(multiplayClient.JoinedUsers.ContainsKey(eventHandler.UserId), Is.True);
-            Assert.That(multiplayClient.JoinedUsers[eventHandler.UserId], Is.EqualTo(multiplayClient.LocalClient));
+            Assert.That(multiplayClient.LocalClient.ClientId, Is.EqualTo(eventHandler.ClientId));
+            Assert.That(multiplayClient.JoinedClients.Count, Is.EqualTo(1));
+            Assert.That(multiplayClient.JoinedClients.ContainsKey(eventHandler.ClientId), Is.True);
+            Assert.That(multiplayClient.JoinedClients[eventHandler.ClientId], Is.EqualTo(multiplayClient.LocalClient));
         });
 
         [Test]
@@ -140,16 +140,16 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             var joiningConfig = new MultiplayJoiningConfig(messagingJoiningConfig);
 
             Assert.That(eventHandler.IsJoiningApprovalRejected, Is.False);
-            Assert.That(eventHandler.UserId, Is.Null);
+            Assert.That(eventHandler.ClientId, Is.Null);
             Assert.That(multiplayClient.LocalClient, Is.Null);
-            Assert.That(multiplayClient.JoinedUsers.Count, Is.Zero);
+            Assert.That(multiplayClient.JoinedClients.Count, Is.Zero);
 
             await multiplayClient.JoinAsync(joiningConfig);
 
             Assert.That(eventHandler.IsJoiningApprovalRejected, Is.True);
-            Assert.That(eventHandler.UserId, Is.Null);
+            Assert.That(eventHandler.ClientId, Is.Null);
             Assert.That(multiplayClient.LocalClient, Is.Null);
-            Assert.That(multiplayClient.JoinedUsers.Count, Is.Zero);
+            Assert.That(multiplayClient.JoinedClients.Count, Is.Zero);
         });
 
         [UnityTest]
@@ -169,18 +169,18 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         }
 
         [UnityTest]
-        public IEnumerator UserJoined() => UniTask.ToCoroutine(async () =>
+        public IEnumerator ClientJoined() => UniTask.ToCoroutine(async () =>
         {
             var messagingJoiningConfig = new MessagingJoiningConfig("MultiplayTest");
             var joiningConfig = new MultiplayJoiningConfig(messagingJoiningConfig);
             await multiplayClient.JoinAsync(joiningConfig);
 
-            Assert.That(eventHandler.JoinedUserId, Is.Null);
+            Assert.That(eventHandler.JoinedClientId, Is.Null);
 
-            messagingClient.FireOnUserJoined();
+            messagingClient.FireOnClientJoined();
             await AssertLogAppearsInSomeFramesAsync($"\"command\":{(int)MultiplayMessageCommand.CreateExistedObject}", LogType.Log);
 
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedUserId));
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId));
         });
 
         [UnityTest]
@@ -190,38 +190,38 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             var joiningConfig = new MultiplayJoiningConfig(messagingJoiningConfig);
             await multiplayClient.JoinAsync(joiningConfig);
 
-            Assert.That(eventHandler.JoinedUserId, Is.Null);
+            Assert.That(eventHandler.JoinedClientId, Is.Null);
 
             messagingClient.FireCreateExistedObjectFromOthers(networkObjectsProvider.NetworkObject);
 
-            await AssertLogAppearsInSomeFramesAsync($"\"command\":{(int)MultiplayMessageCommand.UserInitialized}", LogType.Log);
-            await AssertObjectIsExpectValueInSomeFramesAsync(multiplayClient.JoinedUsers, nameof(multiplayClient.JoinedUsers.Count), 2);
-            var joinedUser = multiplayClient.JoinedUsers.First(pair => pair.Value.NetworkObjects.Count > 0).Value;
-            Assert.That(joinedUser.NetworkObjects[0], Is.EqualTo(eventHandler.SpawnedObject));
+            await AssertLogAppearsInSomeFramesAsync($"\"command\":{(int)MultiplayMessageCommand.ClientInitialized}", LogType.Log);
+            await AssertObjectIsExpectValueInSomeFramesAsync(multiplayClient.JoinedClients, nameof(multiplayClient.JoinedClients.Count), 2);
+            var joinedClient = multiplayClient.JoinedClients.First(pair => pair.Value.NetworkObjects.Count > 0).Value;
+            Assert.That(joinedClient.NetworkObjects[0], Is.EqualTo(eventHandler.SpawnedObject));
         });
 
         [Test]
-        public void UserLeaving()
+        public void ClientLeaving()
         {
-            Assert.That(eventHandler.LeavingUserId, Is.Null);
-            messagingClient.FireOnUserLeaving();
-            Assert.That(eventHandler.LeavingUserId, Is.Not.Null);
+            Assert.That(eventHandler.LeavingClientId, Is.Null);
+            messagingClient.FireOnClientLeaving();
+            Assert.That(eventHandler.LeavingClientId, Is.Not.Null);
         }
 
         [UnityTest]
-        public IEnumerator UserLeavingAfterSpawnObject() => UniTask.ToCoroutine(async () =>
+        public IEnumerator ClientLeavingAfterSpawnObject() => UniTask.ToCoroutine(async () =>
         {
             var messagingJoiningConfig = new MessagingJoiningConfig("MultiplayTest");
             var joiningConfig = new MultiplayJoiningConfig(messagingJoiningConfig);
             await multiplayClient.JoinAsync(joiningConfig);
 
-            messagingClient.FireOnUserJoined();
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedUserId));
+            messagingClient.FireOnClientJoined();
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId));
 
             messagingClient.SpawnObjectFromOthers(networkObjectsProvider.NetworkObject);
             await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject));
 
-            messagingClient.FireOnUserLeaving();
+            messagingClient.FireOnClientLeaving();
             await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject), isNull: true);
         });
 
@@ -240,7 +240,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             var spawnedObject = multiplayClient.SpawnObject(networkObjectsProvider.NetworkObject, message: message);
 
             Assert.That(spawnedObject.name, Does.Contain("Object"));
-            Assert.That(eventHandler.SpawnedObjectUserId, Is.EqualTo(eventHandler.UserId));
+            Assert.That(eventHandler.SpawnedObjectClientId, Is.EqualTo(eventHandler.ClientId));
             Assert.That(eventHandler.SpawnedObject, Is.EqualTo(spawnedObject));
             Assert.That(eventHandler.SpawnedObjectMessage, Is.EqualTo(message));
             Assert.That(multiplayClient.LocalClient.NetworkObjects.Count, Is.EqualTo(1));
@@ -261,7 +261,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             var spawnedObject = multiplayClient.SpawnObject(networkObjectsProvider.NetworkObject);
 
             Assert.That(spawnedObject.name, Does.Contain("Object"));
-            Assert.That(eventHandler.SpawnedObjectUserId, Is.EqualTo(eventHandler.UserId));
+            Assert.That(eventHandler.SpawnedObjectClientId, Is.EqualTo(eventHandler.ClientId));
             Assert.That(eventHandler.SpawnedObject, Is.EqualTo(spawnedObject));
             Assert.That(eventHandler.SpawnedObjectMessage, Is.Null);
             Assert.That(multiplayClient.LocalClient.NetworkObjects.Count, Is.EqualTo(1));
@@ -299,12 +299,12 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             var joiningConfig = new MultiplayJoiningConfig(messagingJoiningConfig);
             await multiplayClient.JoinAsync(joiningConfig);
 
-            messagingClient.FireOnUserJoined();
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedUserId));
+            messagingClient.FireOnClientJoined();
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId));
 
             messagingClient.SpawnObjectFromOthers(networkObjectsProvider.NetworkObject);
             await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject));
-            Assert.That(eventHandler.SpawnedObjectUserId, Is.EqualTo(eventHandler.JoinedUserId));
+            Assert.That(eventHandler.SpawnedObjectClientId, Is.EqualTo(eventHandler.JoinedClientId));
         });
 
         [UnityTest]
@@ -314,8 +314,8 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             var joiningConfig = new MultiplayJoiningConfig(messagingJoiningConfig);
             await multiplayClient.JoinAsync(joiningConfig);
 
-            messagingClient.FireOnUserJoined();
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedUserId));
+            messagingClient.FireOnClientJoined();
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId));
 
             messagingClient.SpawnObjectFromOthers(networkObjectsProvider.NetworkObject);
             await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject));
@@ -412,9 +412,9 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
 
         private class EventHandler
         {
-            public string UserId { get; private set; }
-            public void SetUserId(string userId)
-                => UserId = userId;
+            public string ClientId { get; private set; }
+            public void SetClientId(string clientId)
+                => ClientId = clientId;
 
             public string LeavingReason { get; private set; }
             public void SetLeavingReason(string reason)
@@ -428,13 +428,13 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             public void SetIsJoiningApprovalRejected(bool isJoiningApprovalRejected)
                 => IsJoiningApprovalRejected = isJoiningApprovalRejected;
 
-            public string JoinedUserId { get; private set; }
-            public void SetJoinedUserId(string userId)
-                => JoinedUserId = userId;
+            public string JoinedClientId { get; private set; }
+            public void SetJoinedClientId(string clientId)
+                => JoinedClientId = clientId;
 
-            public string LeavingUserId { get; private set; }
-            public void SetLeavingUserId(string userId)
-                => LeavingUserId = userId;
+            public string LeavingClientId { get; private set; }
+            public void SetLeavingClientId(string clientId)
+                => LeavingClientId = clientId;
 
             public string ReceivedMessageFrom { get; private set; }
             public string ReceivedMessage { get; private set; }
@@ -444,24 +444,24 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
                 ReceivedMessage = values.message;
             }
 
-            public string SpawnedObjectUserId { get; private set; }
+            public string SpawnedObjectClientId { get; private set; }
             public GameObject SpawnedObject { get; private set; }
             public string SpawnedObjectMessage { get; private set; }
-            public void SetSpawnedObjectInfo((string userId, GameObject spawnedObject, string message) values)
+            public void SetSpawnedObjectInfo((string clientId, GameObject spawnedObject, string message) values)
             {
-                SpawnedObjectUserId = values.userId;
+                SpawnedObjectClientId = values.clientId;
                 SpawnedObject = values.spawnedObject;
                 SpawnedObjectMessage = values.message;
             }
 
             public void Clear()
             {
-                SetUserId(default);
+                SetClientId(default);
                 SetLeavingReason(default);
                 SetUnexpectedLeftReason(default);
                 SetIsJoiningApprovalRejected(default);
-                SetJoinedUserId(default);
-                SetLeavingUserId(default);
+                SetJoinedClientId(default);
+                SetLeavingClientId(default);
                 SetReceivedMessageInfo(default);
                 SetSpawnedObjectInfo(default);
             }

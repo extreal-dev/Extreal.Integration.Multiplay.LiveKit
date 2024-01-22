@@ -9,8 +9,8 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
 {
     public class MockMessagingClient : MessagingClient
     {
-        private readonly string localUserId = Guid.NewGuid().ToString();
-        private readonly string otherUserId = Guid.NewGuid().ToString();
+        private readonly string localClientId = Guid.NewGuid().ToString();
+        private readonly string otherClientId = Guid.NewGuid().ToString();
         private GameObject objectPrefab;
         private NetworkObject networkObjectInfo;
 
@@ -31,7 +31,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             }
 
             SetJoiningGroupStatus(true);
-            FireOnJoined(localUserId);
+            FireOnJoined(localClientId);
         }
 
 #pragma warning disable CS1998
@@ -50,24 +50,24 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
 
             if (message.Contains($"\"command\":{(int)MultiplayMessageCommand.CreateExistedObject}"))
             {
-                var returnMessage = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.UserInitialized));
-                FireOnMessageReceived(otherUserId, returnMessage);
+                var returnMessage = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.ClientInitialized));
+                FireOnMessageReceived(otherClientId, returnMessage);
             }
         }
 
         public void FireOnUnexpectedLeft()
             => FireOnUnexpectedLeft("unknown");
 
-        public void FireOnUserJoined()
-            => FireOnClientJoined(otherUserId);
+        public void FireOnClientJoined()
+            => FireOnClientJoined(otherClientId);
 
-        public void FireOnUserLeaving()
-            => FireOnClientLeaving(otherUserId);
+        public void FireOnClientLeaving()
+            => FireOnClientLeaving(otherClientId);
 
         public void FireOnMessageReceived(string message)
         {
             var messageJson = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Message, message: message));
-            FireOnMessageReceived(otherUserId, messageJson);
+            FireOnMessageReceived(otherClientId, messageJson);
         }
 
         public void SpawnObjectFromOthers(GameObject objectPrefab)
@@ -76,7 +76,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             const string gameObjectKey = "testKey";
             networkObjectInfo = new NetworkObject(gameObjectKey, default, default);
             var messageJson = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo));
-            FireOnMessageReceived(otherUserId, messageJson);
+            FireOnMessageReceived(otherClientId, messageJson);
         }
 
         public void UpdateObjectFromOthers()
@@ -92,7 +92,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             }
 
             var message = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Update, networkObjectInfos: new NetworkObject[] { networkObjectInfo }));
-            FireOnMessageReceived(otherUserId, message);
+            FireOnMessageReceived(otherClientId, message);
         }
 
         public void FireCreateExistedObjectFromOthers(GameObject objectPrefab)
@@ -101,7 +101,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             var networkObjectInfo = new NetworkObject(gameObjectKey, default, default);
             var networkObjectInfos = new NetworkObject[] { networkObjectInfo };
             var message = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.CreateExistedObject, networkObjectInfos: networkObjectInfos));
-            FireOnMessageReceived(otherUserId, message);
+            FireOnMessageReceived(otherClientId, message);
         }
 
         protected override UniTask<GroupListResponse> DoListGroupsAsync()

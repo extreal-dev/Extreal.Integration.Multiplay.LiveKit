@@ -9,7 +9,7 @@ namespace Extreal.Integration.Multiplay.Messaging
         Create,
         Update,
         CreateExistedObject,
-        UserInitialized,
+        ClientInitialized,
         Message,
     };
 
@@ -45,6 +45,5 @@ namespace Extreal.Integration.Multiplay.Messaging
         public string ToJson() => JsonUtility.ToJson(this);
 
         public static MultiplayMessage FromJson(string messageJson) => JsonUtility.FromJson<MultiplayMessage>(messageJson);
-
     }
 }

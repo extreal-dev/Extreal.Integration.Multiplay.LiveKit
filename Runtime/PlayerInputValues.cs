@@ -23,7 +23,7 @@ namespace Extreal.Integration.Multiplay.Messaging
             => this.move = move;
 
         /// <summary>
-        /// Checks whether to send data to all other users.
+        /// Checks whether to send data to all other clients.
         /// </summary>
         /// <returns>True if sending data, false otherwise.</returns>
         public virtual bool CheckWhetherToSendData()
