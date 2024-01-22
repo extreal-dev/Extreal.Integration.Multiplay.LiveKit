@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Cysharp.Threading.Tasks;
 using Extreal.Core.Logging;
 using Extreal.Integration.Messaging;
@@ -13,6 +14,8 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         private readonly string otherClientId = Guid.NewGuid().ToString();
         private GameObject objectPrefab;
         private NetworkObject networkObjectInfo;
+        private NetworkObjectsProvider networkObjectsProvider;
+        private Dictionary<string, GameObject> networkGameObjectDic;
 
         private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(MockMessagingClient));
 
@@ -73,7 +76,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         public void SpawnObjectFromOthers(GameObject objectPrefab)
         {
             this.objectPrefab = objectPrefab;
-            const string gameObjectKey = "testKey";
+            var gameObjectKey = GetNetworkGameObjectKey(this.objectPrefab);
             networkObjectInfo = new NetworkObject(gameObjectKey, default, default);
             var messageJson = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo));
             FireOnMessageReceived(otherClientId, messageJson);
@@ -97,7 +100,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
 
         public void FireCreateExistedObjectFromOthers(GameObject objectPrefab)
         {
-            const string gameObjectKey = "testKey";
+            var gameObjectKey = GetNetworkGameObjectKey(objectPrefab);
             var networkObjectInfo = new NetworkObject(gameObjectKey, default, default);
             var networkObjectInfos = new NetworkObject[] { networkObjectInfo };
             var message = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.CreateExistedObject, networkObjectInfos: networkObjectInfos));
@@ -114,6 +117,18 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
 
             var groups = new GroupListResponse { Groups = new List<GroupResponse> { group } };
             return UniTask.FromResult(groups);
+        }
+
+        private string GetNetworkGameObjectKey(GameObject objectPrefab)
+        {
+            networkObjectsProvider = UnityEngine.Object.FindObjectOfType<NetworkObjectsProvider>();
+            networkGameObjectDic = networkObjectsProvider.Provide();
+            var gameObjectKey = networkGameObjectDic.FirstOrDefault(keyValue => keyValue.Value == objectPrefab).Key;
+            if (string.IsNullOrEmpty(gameObjectKey) || !networkGameObjectDic.ContainsKey(gameObjectKey))
+            {
+                gameObjectKey = "failed";
+            }
+            return gameObjectKey;
         }
     }
 }

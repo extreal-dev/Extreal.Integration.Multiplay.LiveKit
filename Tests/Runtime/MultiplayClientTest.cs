@@ -19,6 +19,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         private MultiplayClient multiplayClient;
         private MockMessagingClient messagingClient;
         private NetworkObjectsProvider networkObjectsProvider;
+        private Dictionary<string, GameObject> networkGameObjectDic;
 
         private readonly EventHandler eventHandler = new EventHandler();
 
@@ -33,6 +34,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             await SceneManager.LoadSceneAsync("Main");
 
             networkObjectsProvider = UnityEngine.Object.FindObjectOfType<NetworkObjectsProvider>();
+            networkGameObjectDic = networkObjectsProvider.Provide();
             messagingClient = new MockMessagingClient();
 
             var queuingMessagingClient = new QueuingMessagingClient(messagingClient);

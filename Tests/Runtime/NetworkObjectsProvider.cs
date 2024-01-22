@@ -12,6 +12,6 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         [SerializeField] private GameObject spawnFailedObject;
 
         public Dictionary<string, GameObject> Provide()
-            => new Dictionary<string, GameObject>() { { "testKey", networkObject } };
+            => new Dictionary<string, GameObject> { { "testKey", networkObject } };
     }
 }
