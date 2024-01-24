@@ -307,6 +307,19 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         });
 
         [UnityTest]
+        public IEnumerator ReceiveSpawnObjectFromOthersWhenJoinedTimingLate() => UniTask.ToCoroutine(async () =>
+        {
+            var messagingJoiningConfig = new MessagingJoiningConfig("MultiplayTest");
+            var joiningConfig = new MultiplayJoiningConfig(messagingJoiningConfig);
+            await multiplayClient.JoinAsync(joiningConfig);
+            messagingClient.SpawnObjectFromOthers(networkObjectsProvider.NetworkObject);
+
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId));
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject));
+            Assert.That(eventHandler.SpawnedObjectClientId, Is.EqualTo(eventHandler.JoinedClientId));
+        });
+
+        [UnityTest]
         public IEnumerator ReceiveSynchronizeObjectFromOthers() => UniTask.ToCoroutine(async () =>
         {
             var messagingJoiningConfig = new MessagingJoiningConfig("MultiplayTest");

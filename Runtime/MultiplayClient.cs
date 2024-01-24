@@ -136,7 +136,10 @@ namespace Extreal.Integration.Multiplay.Messaging
             this.messagingClient.OnClientJoined
                 .Subscribe(joinedClientId =>
                 {
-                    joinedClients[joinedClientId] = new NetworkClient(joinedClientId);
+                    if (!joinedClients.ContainsKey(joinedClientId))
+                    {
+                        joinedClients[joinedClientId] = new NetworkClient(joinedClientId);
+                    }
 
                     var networkObjectInfos = localNetworkObjectInfos.Values.ToArray();
                     var multiplayMessage = new MultiplayMessage(MultiplayMessageCommand.CreateExistedObject, networkObjectInfos: networkObjectInfos);
@@ -223,6 +226,10 @@ namespace Extreal.Integration.Multiplay.Messaging
 
                 if (message.Command is MultiplayMessageCommand.Create)
                 {
+                    if (!joinedClients.ContainsKey(from))
+                    {
+                        joinedClients[from] = new NetworkClient(from);
+                    }
                     CreateObject(from, message.NetworkObjectInfo, message.Message);
                 }
                 else if (message.Command is MultiplayMessageCommand.Update)
@@ -234,7 +241,10 @@ namespace Extreal.Integration.Multiplay.Messaging
                 }
                 else if (message.Command is MultiplayMessageCommand.CreateExistedObject)
                 {
-                    joinedClients[from] = new NetworkClient(from);
+                    if (!joinedClients.ContainsKey(from))
+                    {
+                        joinedClients[from] = new NetworkClient(from);
+                    }
                     foreach (var networkObjectInfo in message.NetworkObjectInfos)
                     {
                         CreateObject(from, networkObjectInfo);
@@ -255,15 +265,21 @@ namespace Extreal.Integration.Multiplay.Messaging
 
         private void CreateObject(string clientId, NetworkObject networkObjectInfo, string message = default)
         {
-            var gameObjectHash = networkObjectInfo.GameObjectKey;
+            if (networkGameObjects.ContainsKey(networkObjectInfo.ObjectGuid))
+            {
+                // Not covered by testing due to defensive implementation
+                return;
+            }
+
+            var gameObjectKey = networkObjectInfo.GameObjectKey;
             if (Logger.IsDebug())
             {
                 Logger.LogDebug(
                     "Create network object:"
-                    + $" clientId={clientId}, ObjectGuid={networkObjectInfo.ObjectGuid}, gameObjectHash={gameObjectHash}");
+                    + $" clientId={clientId}, ObjectGuid={networkObjectInfo.ObjectGuid}, gameObjectKey={gameObjectKey}");
             }
 
-            SpawnInternal(networkObjectPrefabs[gameObjectHash], networkObjectInfo, joinedClients[clientId].AddNetworkObject, clientId, message: message);
+            SpawnInternal(networkObjectPrefabs[gameObjectKey], networkObjectInfo, joinedClients[clientId].AddNetworkObject, clientId, message: message);
         }
 
         private void UpdateObject(NetworkObject networkObjectInfo)
