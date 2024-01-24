@@ -313,9 +313,10 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             var joiningConfig = new MultiplayJoiningConfig(messagingJoiningConfig);
             await multiplayClient.JoinAsync(joiningConfig);
             messagingClient.SpawnObjectFromOthers(networkObjectsProvider.NetworkObject);
-
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId));
             await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject));
+
+            messagingClient.FireOnClientJoined();
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId));
             Assert.That(eventHandler.SpawnedObjectClientId, Is.EqualTo(eventHandler.JoinedClientId));
         });
 
