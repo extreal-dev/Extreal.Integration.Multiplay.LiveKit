@@ -1,6 +1,5 @@
-using System;
-using System.Diagnostics.CodeAnalysis;
-using UnityEngine;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Extreal.Integration.Multiplay.Messaging
 {
@@ -13,20 +12,12 @@ namespace Extreal.Integration.Multiplay.Messaging
         Message,
     };
 
-    [Serializable]
     public class MultiplayMessage
     {
-        public MultiplayMessageCommand Command => command;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private MultiplayMessageCommand command;
-
-        public NetworkObjectInfo NetworkObjectInfo => networkObjectInfo;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo networkObjectInfo;
-
-        public NetworkObjectInfo[] NetworkObjectInfos => networkObjectInfos;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObjectInfo[] networkObjectInfos;
-
-        public string Message => message;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private string message;
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public MultiplayMessageCommand Command { get; }
+        public NetworkObjectInfo NetworkObjectInfo { get; }
+        public NetworkObjectInfo[] NetworkObjectInfos { get; }
+        public string Message { get; }
 
         public MultiplayMessage
         (
@@ -36,10 +27,53 @@ namespace Extreal.Integration.Multiplay.Messaging
             string message = default
         )
         {
-            this.command = command;
-            this.networkObjectInfo = networkObjectInfo;
-            this.networkObjectInfos = networkObjectInfos;
-            this.message = message;
+            Command = command;
+            NetworkObjectInfo = networkObjectInfo;
+            NetworkObjectInfos = networkObjectInfos;
+            Message = message;
+        }
+
+        public string ToJson()
+        {
+            if (NetworkObjectInfo != default)
+            {
+                NetworkObjectInfo.OnBeforeSerialize();
+            }
+            if (NetworkObjectInfos != default)
+            {
+                foreach (var networkObjectInfo in NetworkObjectInfos)
+                {
+                    networkObjectInfo.OnBeforeSerialize();
+                }
+            }
+
+            return JsonSerializer.Serialize(this, new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
+                Converters = { new Vector2Converter(), new Vector3Converter(), new QuaternionConverter() },
+            });
+        }
+
+        public static MultiplayMessage FromJson(string json)
+        {
+            var multiplayMessage = JsonSerializer.Deserialize<MultiplayMessage>(json, new JsonSerializerOptions
+            {
+                Converters = { new Vector2Converter(), new Vector3Converter(), new QuaternionConverter() },
+            });
+            if (multiplayMessage.NetworkObjectInfo != default)
+            {
+                multiplayMessage.NetworkObjectInfo.OnAfterDeserialize();
+            }
+            if (multiplayMessage.NetworkObjectInfos != default)
+            {
+                foreach (var networkObjectInfo in multiplayMessage.NetworkObjectInfos)
+                {
+                    networkObjectInfo.OnAfterDeserialize();
+                }
+            }
+
+
+            return multiplayMessage;
         }
     }
 }

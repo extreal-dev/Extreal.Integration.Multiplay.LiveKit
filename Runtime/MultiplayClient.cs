@@ -33,38 +33,38 @@ namespace Extreal.Integration.Multiplay.Messaging
         /// <para>Invokes immediately after this client joins a group.</para>
         /// Arg: User ID of this client.
         /// </summary>
-        public IObservable<string> OnJoined => messagingClient.OnJoined;
+        public IObservable<string> OnJoined => MessagingClient.OnJoined;
 
         /// <summary>
         /// <para>Invokes just before this client leaves a group.</para>
         /// Arg: reason why this client leaves.
         /// </summary>
-        public IObservable<string> OnLeaving => messagingClient.OnLeaving;
+        public IObservable<string> OnLeaving => MessagingClient.OnLeaving;
 
         /// <summary>
         /// <para>Invokes immediately after this client unexpectedly leaves a group.</para>
         /// Arg: reason why this client leaves.
         /// </summary>
-        public IObservable<string> OnUnexpectedLeft => messagingClient.OnUnexpectedLeft;
+        public IObservable<string> OnUnexpectedLeft => MessagingClient.OnUnexpectedLeft;
 
         /// <summary>
         /// Invokes immediately after the joining approval is rejected.
         /// </summary>
-        public IObservable<Unit> OnJoiningApprovalRejected => messagingClient.OnJoiningApprovalRejected;
+        public IObservable<Unit> OnJoiningApprovalRejected => MessagingClient.OnJoiningApprovalRejected;
 
         /// <summary>
         /// <para>Invokes immediately after a user joins the group this client joined.</para>
         /// Arg: ID of the joined user.
         /// </summary>
-        public IObservable<string> OnUserJoined => onUserJoined;
+        public IObservable<string> OnUserJoined => OnUserJoinedProtected;
         [SuppressMessage("Usage", "CC0033")]
-        private readonly Subject<string> onUserJoined = new Subject<string>();
+        protected Subject<string> OnUserJoinedProtected { get; } = new Subject<string>();
 
         /// <summary>
         /// <para>Invokes just before a user leaves the group this client joined.</para>
         /// Arg: ID of the left user.
         /// </summary>
-        public IObservable<string> OnUserLeaving => messagingClient.OnUserLeaving;
+        public IObservable<string> OnUserLeaving => MessagingClient.OnUserLeaving;
 
         /// <summary>
         /// <para>Invokes immediately after an object is spawned.</para>
@@ -85,11 +85,13 @@ namespace Extreal.Integration.Multiplay.Messaging
         private readonly Subject<(string, string)> onMessageReceived = new Subject<(string, string)>();
 
         private readonly Dictionary<Guid, NetworkObjectInfo> localNetworkObjectInfos = new Dictionary<Guid, NetworkObjectInfo>();
-        private readonly Dictionary<Guid, GameObject> networkGameObjects = new Dictionary<Guid, GameObject>();
-        private readonly Dictionary<int, GameObject> networkObjectPrefabs = new Dictionary<int, GameObject>();
+        protected Dictionary<Guid, NetworkObjectInfo> RemoteNetworkObjectInfos { get; } = new Dictionary<Guid, NetworkObjectInfo>();
+        protected Dictionary<Guid, GameObject> NetworkGameObjects { get; } = new Dictionary<Guid, GameObject>();
+        protected Dictionary<int, GameObject> NetworkObjectPrefabs { get; } = new Dictionary<int, GameObject>();
 
-        private readonly QueuingMessagingClient messagingClient;
+        protected QueuingMessagingClient MessagingClient { get; }
 
+        private bool isDisposed;
         private readonly CompositeDisposable disposables = new CompositeDisposable();
         private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(MultiplayClient));
 
@@ -112,15 +114,13 @@ namespace Extreal.Integration.Multiplay.Messaging
 
             onObjectSpawned.AddTo(disposables);
             onMessageReceived.AddTo(disposables);
-            this.messagingClient = messagingClient.AddTo(disposables);
+            MessagingClient = messagingClient.AddTo(disposables);
 
             networkObjectsProvider.Provide().ForEach(AddToNetworkObjectPrefabs);
 
-            Observable.EveryUpdate()
-                .Subscribe(_ => Update())
-                .AddTo(disposables);
+            UpdateAsync().Forget();
 
-            this.messagingClient.OnJoined
+            MessagingClient.OnJoined
                 .Subscribe(userId =>
                 {
                     LocalClient = new NetworkClient(userId);
@@ -128,29 +128,35 @@ namespace Extreal.Integration.Multiplay.Messaging
                 })
                 .AddTo(disposables);
 
-            this.messagingClient.OnLeaving
-                .Merge(this.messagingClient.OnUnexpectedLeft)
+            MessagingClient.OnLeaving
+                .Merge(MessagingClient.OnUnexpectedLeft)
                 .Subscribe(_ => Clear())
                 .AddTo(disposables);
 
-            this.messagingClient.OnUserJoined
+            MessagingClient.OnUserJoined
                 .Subscribe(connectedUserId =>
                 {
-                    joinedUsers[connectedUserId] = new NetworkClient(connectedUserId);
+                    if (!joinedUsers.ContainsKey(connectedUserId))
+                    {
+                        joinedUsers[connectedUserId] = new NetworkClient(connectedUserId);
+                    }
 
                     var networkObjectInfos = localNetworkObjectInfos.Values.ToArray();
-                    var message = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.CreateExistedObject, networkObjectInfos: networkObjectInfos));
-                    this.messagingClient.EnqueueRequest(message, connectedUserId);
+                    var message = new MultiplayMessage(MultiplayMessageCommand.CreateExistedObject, networkObjectInfos: networkObjectInfos).ToJson();
+                    MessagingClient.EnqueueRequest(message, connectedUserId);
                 })
                 .AddTo(disposables);
 
-            this.messagingClient.OnUserLeaving
+            MessagingClient.OnUserLeaving
                 .Subscribe(disconnectingUserId =>
                 {
                     if (joinedUsers.TryGetValue(disconnectingUserId, out var networkClient))
                     {
                         foreach (var networkObject in networkClient.NetworkObjects)
                         {
+                            var objectGuid = NetworkGameObjects.First(pair => pair.Value == networkObject).Key;
+                            NetworkGameObjects.Remove(objectGuid);
+                            RemoteNetworkObjectInfos.Remove(objectGuid);
                             UnityEngine.Object.Destroy(networkObject);
                         }
                         joinedUsers.Remove(disconnectingUserId);
@@ -162,18 +168,19 @@ namespace Extreal.Integration.Multiplay.Messaging
         private void AddToNetworkObjectPrefabs(GameObject go)
         {
             var selfInstanceId = MultiplayUtil.GetGameObjectHash(go);
-            networkObjectPrefabs.Add(selfInstanceId, go);
+            NetworkObjectPrefabs.Add(selfInstanceId, go);
         }
 
         protected override void ReleaseManagedResources()
         {
             Clear();
             disposables.Dispose();
+            isDisposed = true;
         }
 
         private void Clear()
         {
-            foreach (var networkGameObject in networkGameObjects.Values)
+            foreach (var networkGameObject in NetworkGameObjects.Values)
             {
                 UnityEngine.Object.Destroy(networkGameObject);
             }
@@ -181,18 +188,22 @@ namespace Extreal.Integration.Multiplay.Messaging
             LocalClient = null;
             joinedUsers.Clear();
             localNetworkObjectInfos.Clear();
-            networkGameObjects.Clear();
+            NetworkGameObjects.Clear();
         }
 
-        private void Update()
+        private async UniTaskVoid UpdateAsync()
         {
-            if (!messagingClient.IsJoinedGroup)
+            while (!isDisposed)
             {
-                return;
-            }
+                await UniTask.Yield();
+                if (!MessagingClient.IsJoinedGroup)
+                {
+                    continue;
+                }
 
-            SynchronizeToOthers();
-            SynchronizeLocal();
+                SynchronizeToOthers();
+                SynchronizeLocal();
+            }
         }
 
         private void SynchronizeToOthers()
@@ -200,9 +211,7 @@ namespace Extreal.Integration.Multiplay.Messaging
             var networkObjectInfosToSend = new List<NetworkObjectInfo>();
             foreach ((var guid, var networkObjectInfo) in localNetworkObjectInfos)
             {
-                var localGameObject = networkGameObjects[guid];
-                networkObjectInfo.GetTransformFrom(localGameObject.transform);
-
+                var localGameObject = NetworkGameObjects[guid];
                 if (localGameObject.TryGetComponent(out PlayerInput input))
                 {
                     networkObjectInfo.GetValuesFrom(in input);
@@ -210,57 +219,77 @@ namespace Extreal.Integration.Multiplay.Messaging
 
                 if (networkObjectInfo.CheckWhetherToSendData())
                 {
+                    networkObjectInfo.GetTransformFrom(localGameObject.transform);
                     networkObjectInfosToSend.Add(networkObjectInfo);
                 }
             }
             if (networkObjectInfosToSend.Count > 0)
             {
-                var message = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Update, networkObjectInfos: networkObjectInfosToSend.ToArray()));
-                messagingClient.EnqueueRequest(message);
+                var message = new MultiplayMessage(MultiplayMessageCommand.Update, networkObjectInfos: networkObjectInfosToSend.ToArray()).ToJson();
+                MessagingClient.EnqueueRequest(message);
             }
         }
 
-        private void SynchronizeLocal()
+        protected virtual void SynchronizeLocal()
         {
-            while (messagingClient.ResponseQueueCount() > 0)
+            while (MessagingClient.ResponseQueueCount() > 0)
             {
-                (var from, var messageJson) = messagingClient.DequeueResponse();
-                var message = JsonUtility.FromJson<MultiplayMessage>(messageJson);
+                (var from, var messageJson) = MessagingClient.DequeueResponse();
+                var message = MultiplayMessage.FromJson(messageJson);
 
                 if (message.Command is MultiplayMessageCommand.Create)
                 {
+                    if (!joinedUsers.ContainsKey(from))
+                    {
+                        joinedUsers[from] = new NetworkClient(from);
+                    }
                     CreateObject(from, message.NetworkObjectInfo, message.Message);
                 }
                 else if (message.Command is MultiplayMessageCommand.Update)
                 {
                     foreach (var networkObjectInfo in message.NetworkObjectInfos)
                     {
-                        UpdateObject(networkObjectInfo);
+                        UpdateNetworkObjectInfo(networkObjectInfo);
                     }
                 }
                 else if (message.Command is MultiplayMessageCommand.CreateExistedObject)
                 {
-                    joinedUsers[from] = new NetworkClient(from);
+                    if (!joinedUsers.ContainsKey(from))
+                    {
+                        joinedUsers[from] = new NetworkClient(from);
+                    }
                     foreach (var networkObjectInfo in message.NetworkObjectInfos)
                     {
                         CreateObject(from, networkObjectInfo);
                     }
-                    var responseMsg = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.UserInitialized));
-                    messagingClient.EnqueueRequest(responseMsg, from);
+                    var responseMsg = new MultiplayMessage(MultiplayMessageCommand.UserInitialized).ToJson();
+                    MessagingClient.EnqueueRequest(responseMsg, from);
                 }
                 else if (message.Command is MultiplayMessageCommand.UserInitialized)
                 {
-                    onUserJoined.OnNext(from);
+                    OnUserJoinedProtected.OnNext(from);
                 }
                 else if (message.Command is MultiplayMessageCommand.Message)
                 {
                     onMessageReceived.OnNext((from, message.Message));
                 }
             }
+
+            foreach (var networkObjectInfo in RemoteNetworkObjectInfos.Values)
+            {
+                UpdateObjectTransform(networkObjectInfo);
+            }
         }
 
-        private void CreateObject(string userId, NetworkObjectInfo networkObjectInfo, string message = default)
+        protected void CreateObject(string userId, NetworkObjectInfo networkObjectInfo, string message = default)
         {
+            if (RemoteNetworkObjectInfos.ContainsKey(networkObjectInfo.ObjectGuid))
+            {
+                return;
+            }
+
+            RemoteNetworkObjectInfos[networkObjectInfo.ObjectGuid] = networkObjectInfo;
+
             var gameObjectHash = networkObjectInfo.GameObjectHash;
             if (Logger.IsDebug())
             {
@@ -269,25 +298,28 @@ namespace Extreal.Integration.Multiplay.Messaging
                     + $" userId={userId}, ObjectGuid={networkObjectInfo.ObjectGuid}, gameObjectHash={gameObjectHash}");
             }
 
-            SpawnInternal(networkObjectPrefabs[gameObjectHash], networkObjectInfo, joinedUsers[userId].AddNetworkObject, userId, message: message);
+            SpawnInternal(NetworkObjectPrefabs[gameObjectHash], networkObjectInfo, joinedUsers[userId].AddNetworkObject, userId, message: message);
         }
 
-        private void UpdateObject(NetworkObjectInfo networkObjectInfo)
+        protected void UpdateNetworkObjectInfo(NetworkObjectInfo networkObjectInfo)
         {
-            if (networkGameObjects.TryGetValue(networkObjectInfo.ObjectGuid, out var objectToBeUpdated))
+            if (NetworkGameObjects.TryGetValue(networkObjectInfo.ObjectGuid, out var objectToBeUpdated))
             {
+                networkObjectInfo.SetPreTransform(objectToBeUpdated.transform);
+                RemoteNetworkObjectInfos[networkObjectInfo.ObjectGuid] = networkObjectInfo;
+
                 if (objectToBeUpdated.TryGetComponent(out PlayerInput input))
                 {
                     networkObjectInfo.ApplyValuesTo(in input);
                 }
+            }
+        }
 
-                if ((objectToBeUpdated.transform.position - networkObjectInfo.Position).sqrMagnitude > 0f ||
-                    Quaternion.Angle(objectToBeUpdated.transform.rotation, networkObjectInfo.Rotation) > 0f)
-                {
-                    objectToBeUpdated.transform.position = networkObjectInfo.Position;
-                    objectToBeUpdated.transform.rotation = networkObjectInfo.Rotation;
-                }
-
+        protected void UpdateObjectTransform(NetworkObjectInfo networkObjectInfo)
+        {
+            if (NetworkGameObjects.TryGetValue(networkObjectInfo.ObjectGuid, out var objectToBeUpdated))
+            {
+                networkObjectInfo.SetTransformTo(objectToBeUpdated.transform);
             }
         }
 
@@ -303,14 +335,14 @@ namespace Extreal.Integration.Multiplay.Messaging
                 throw new ArgumentNullException(nameof(joiningConfig));
             }
 
-            return messagingClient.JoinAsync(joiningConfig.MessagingJoiningConfig);
+            return MessagingClient.JoinAsync(joiningConfig.MessagingJoiningConfig);
         }
 
         /// <summary>
         /// Leaves a group.
         /// </summary>
         public UniTask LeaveAsync()
-            => messagingClient.LeaveAsync();
+            => MessagingClient.LeaveAsync();
 
         /// <summary>
         /// Spawns an object.
@@ -331,11 +363,15 @@ namespace Extreal.Integration.Multiplay.Messaging
             }
 
             var gameObjectHash = MultiplayUtil.GetGameObjectHash(objectPrefab);
-            if (!networkObjectPrefabs.ContainsKey(gameObjectHash))
+            if (!NetworkObjectPrefabs.ContainsKey(gameObjectHash))
             {
                 throw new ArgumentOutOfRangeException(nameof(objectPrefab), "Specify any of the objects that INetworkObjectsProvider provides");
             }
 
+            if (rotation.x == default)
+            {
+                rotation = Quaternion.identity;
+            }
             var networkObjectInfo = new NetworkObjectInfo(gameObjectHash, position, rotation);
             return SpawnInternal(objectPrefab, networkObjectInfo, LocalClient.AddNetworkObject, LocalClient.UserId, parent, message);
         }
@@ -352,12 +388,12 @@ namespace Extreal.Integration.Multiplay.Messaging
         {
             var spawnedObject = UnityEngine.Object.Instantiate(prefab, networkObjectInfo.Position, networkObjectInfo.Rotation, parent);
             setToNetworkClient.Invoke(spawnedObject);
-            networkGameObjects.Add(networkObjectInfo.ObjectGuid, spawnedObject);
+            NetworkGameObjects.Add(networkObjectInfo.ObjectGuid, spawnedObject);
             if (userId == LocalClient?.UserId)
             {
                 localNetworkObjectInfos.Add(networkObjectInfo.ObjectGuid, networkObjectInfo);
-                var messageJson = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo, message: message));
-                messagingClient.EnqueueRequest(messageJson);
+                var messageJson = new MultiplayMessage(MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo, message: message).ToJson();
+                MessagingClient.EnqueueRequest(messageJson);
             }
 
             onObjectSpawned.OnNext((userId, spawnedObject, message));
@@ -380,8 +416,8 @@ namespace Extreal.Integration.Multiplay.Messaging
                 throw new ArgumentNullException(nameof(message));
             }
 
-            var messageJson = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Message, message: message));
-            messagingClient.EnqueueRequest(messageJson, to);
+            var messageJson = new MultiplayMessage(MultiplayMessageCommand.Message, message: message).ToJson();
+            MessagingClient.EnqueueRequest(messageJson, to);
         }
     }
 }

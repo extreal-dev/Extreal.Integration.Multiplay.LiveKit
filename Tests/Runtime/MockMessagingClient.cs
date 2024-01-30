@@ -49,7 +49,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
 
             if (message.Contains($"\"command\":{(int)MultiplayMessageCommand.CreateExistedObject}"))
             {
-                var returnMessage = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.UserInitialized));
+                var returnMessage = new MultiplayMessage(MultiplayMessageCommand.UserInitialized).ToJson();
                 FireOnMessageReceived(otherUserId, returnMessage);
             }
         }
@@ -65,7 +65,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
 
         public void FireOnMessageReceived(string message)
         {
-            var messageJson = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Message, message: message));
+            var messageJson = new MultiplayMessage(MultiplayMessageCommand.Message, message: message).ToJson();
             FireOnMessageReceived(otherUserId, messageJson);
         }
 
@@ -74,7 +74,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             this.objectPrefab = objectPrefab;
             var gameObjectHash = MultiplayUtil.GetGameObjectHash(this.objectPrefab);
             networkObjectInfo = new NetworkObjectInfo(gameObjectHash, default, default);
-            var messageJson = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo));
+            var messageJson = new MultiplayMessage(MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo).ToJson();
             FireOnMessageReceived(otherUserId, messageJson);
         }
 
@@ -90,7 +90,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
                 networkObjectInfo.GetValuesFrom(in input);
             }
 
-            var message = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.Update, networkObjectInfos: new NetworkObjectInfo[] { networkObjectInfo }));
+            var message = new MultiplayMessage(MultiplayMessageCommand.Update, networkObjectInfos: new NetworkObjectInfo[] { networkObjectInfo }).ToJson();
             FireOnMessageReceived(otherUserId, message);
         }
 
@@ -99,7 +99,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             var gameObjectHash = MultiplayUtil.GetGameObjectHash(objectPrefab);
             var networkObjectInfo = new NetworkObjectInfo(gameObjectHash, default, default);
             var networkObjectInfos = new NetworkObjectInfo[] { networkObjectInfo };
-            var message = JsonUtility.ToJson(new MultiplayMessage(MultiplayMessageCommand.CreateExistedObject, networkObjectInfos: networkObjectInfos));
+            var message = new MultiplayMessage(MultiplayMessageCommand.CreateExistedObject, networkObjectInfos: networkObjectInfos).ToJson();
             FireOnMessageReceived(otherUserId, message);
         }
 
