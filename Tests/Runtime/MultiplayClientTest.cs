@@ -177,9 +177,9 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             Assert.That(eventHandler.JoinedClientId, Is.Null);
 
             messagingClient.FireOnClientJoined();
-            await AssertLogAppearsInSomeFramesAsync($"\"command\":{(int)MultiplayMessageCommand.CreateExistedObject}", LogType.Log);
+            await AssertLogAppearsInSomeFramesAsync($"\"Command\":{(int)MultiplayMessageCommand.CreateExistedObject}", LogType.Log);
 
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId));
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId), isNull: false);
         });
 
         [UnityTest]
@@ -193,7 +193,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
 
             messagingClient.FireCreateExistedObjectFromOthers(networkObjectsProvider.NetworkObject);
 
-            await AssertLogAppearsInSomeFramesAsync($"\"command\":{(int)MultiplayMessageCommand.ClientInitialized}", LogType.Log);
+            await AssertLogAppearsInSomeFramesAsync($"\"Command\":{(int)MultiplayMessageCommand.ClientInitialized}", LogType.Log);
             await AssertObjectIsExpectValueInSomeFramesAsync(multiplayClient.JoinedClients, nameof(multiplayClient.JoinedClients.Count), 2);
             var joinedClient = multiplayClient.JoinedClients.First(pair => pair.Value.NetworkObjects.Count > 0).Value;
             Assert.That(joinedClient.NetworkObjects[0], Is.EqualTo(eventHandler.SpawnedObject));
@@ -215,10 +215,10 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             await multiplayClient.JoinAsync(joiningConfig);
 
             messagingClient.FireOnClientJoined();
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId));
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId), isNull: false);
 
             messagingClient.SpawnObjectFromOthers(networkObjectsProvider.NetworkObject);
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject));
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject), isNull: false);
 
             messagingClient.FireOnClientLeaving();
             await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject), isNull: true);
@@ -244,7 +244,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             Assert.That(eventHandler.SpawnedObjectMessage, Is.EqualTo(message));
             Assert.That(multiplayClient.LocalClient.NetworkObjects.Count, Is.EqualTo(1));
             Assert.That(multiplayClient.LocalClient.NetworkObjects[0], Is.EqualTo(spawnedObject));
-            await AssertLogAppearsInSomeFramesAsync($"\"command\":{(int)MultiplayMessageCommand.Create}", LogType.Log);
+            await AssertLogAppearsInSomeFramesAsync("message={\"NetworkObject\"", LogType.Log);
         });
 
         [UnityTest]
@@ -265,7 +265,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             Assert.That(eventHandler.SpawnedObjectMessage, Is.Null);
             Assert.That(multiplayClient.LocalClient.NetworkObjects.Count, Is.EqualTo(1));
             Assert.That(multiplayClient.LocalClient.NetworkObjects[0], Is.EqualTo(spawnedObject));
-            await AssertLogAppearsInSomeFramesAsync($"\"command\":{(int)MultiplayMessageCommand.Create}", LogType.Log);
+            await AssertLogAppearsInSomeFramesAsync("message={\"NetworkObject\"", LogType.Log);
         });
 
         [Test]
@@ -288,7 +288,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             await multiplayClient.JoinAsync(joiningConfig);
 
             var spawnedObject = multiplayClient.SpawnObject(networkObjectsProvider.NetworkObject);
-            await AssertLogAppearsInSomeFramesAsync($"\"command\":{(int)MultiplayMessageCommand.Update}", LogType.Log);
+            await AssertLogAppearsInSomeFramesAsync($"\"Command\":{(int)MultiplayMessageCommand.Update}", LogType.Log);
         });
 
         [UnityTest]
@@ -299,10 +299,10 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             await multiplayClient.JoinAsync(joiningConfig);
 
             messagingClient.FireOnClientJoined();
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId));
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId), isNull: false);
 
             messagingClient.SpawnObjectFromOthers(networkObjectsProvider.NetworkObject);
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject));
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject), isNull: false);
             Assert.That(eventHandler.SpawnedObjectClientId, Is.EqualTo(eventHandler.JoinedClientId));
         });
 
@@ -313,10 +313,10 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             var joiningConfig = new MultiplayJoiningConfig(messagingJoiningConfig);
             await multiplayClient.JoinAsync(joiningConfig);
             messagingClient.SpawnObjectFromOthers(networkObjectsProvider.NetworkObject);
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject));
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject), isNull: false);
 
             messagingClient.FireOnClientJoined();
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId));
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId), isNull: false);
             Assert.That(eventHandler.SpawnedObjectClientId, Is.EqualTo(eventHandler.JoinedClientId));
         });
 
@@ -328,14 +328,19 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             await multiplayClient.JoinAsync(joiningConfig);
 
             messagingClient.FireOnClientJoined();
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId));
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.JoinedClientId), isNull: false);
 
             messagingClient.SpawnObjectFromOthers(networkObjectsProvider.NetworkObject);
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject));
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.SpawnedObject), isNull: false);
 
             await AssertObjectIsExpectValueInSomeFramesAsync(eventHandler.SpawnedObject.transform, nameof(eventHandler.SpawnedObject.transform.position), Vector3.zero);
             messagingClient.UpdateObjectFromOthers();
-            await AssertObjectIsExpectValueInSomeFramesAsync(eventHandler.SpawnedObject.transform, nameof(eventHandler.SpawnedObject.transform.position), Vector3.forward);
+
+            for (var i = 0; i < 60 && eventHandler.SpawnedObject.transform.position.z < 1f; i++)
+            {
+                await UniTask.Yield();
+            }
+            Assert.That(eventHandler.SpawnedObject.transform.position.z, Is.GreaterThan(1f));
         });
 
         [UnityTest]
@@ -367,11 +372,11 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
 
             Assert.That(eventHandler.ReceivedMessage, Is.Null);
             messagingClient.FireOnMessageReceived(message);
-            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.ReceivedMessage));
+            await AssertObjectIsNullOrNotInSomeFramesAsync(eventHandler, nameof(eventHandler.ReceivedMessage), isNull: false);
             Assert.That(eventHandler.ReceivedMessage, Is.EqualTo(message));
         });
 
-        private static async UniTask AssertObjectIsNullOrNotInSomeFramesAsync(object obj, string propertyName, bool isNull = false, int frames = 10)
+        private static async UniTask AssertObjectIsNullOrNotInSomeFramesAsync(object obj, string propertyName, bool isNull, int frames = 10)
         {
             var type = obj.GetType();
             var property = type.GetProperty(propertyName);

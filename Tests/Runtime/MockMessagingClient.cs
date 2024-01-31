@@ -51,7 +51,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
                 Logger.LogDebug($"{nameof(SendMessageAsync)}: message={message}");
             }
 
-            if (message.Contains($"\"command\":{(int)MultiplayMessageCommand.CreateExistedObject}"))
+            if (message.Contains($"\"Command\":{(int)MultiplayMessageCommand.CreateExistedObject}"))
             {
                 var returnMessage = new MultiplayMessage(MultiplayMessageCommand.ClientInitialized).ToJson();
                 FireOnMessageReceived(otherClientId, returnMessage);
@@ -77,7 +77,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         {
             this.objectPrefab = objectPrefab;
             var gameObjectKey = GetNetworkGameObjectKey(this.objectPrefab);
-            networkObject = new NetworkObject(gameObjectKey, default, default);
+            networkObject = new NetworkObject(gameObjectKey, default, Quaternion.identity);
             var messageJson = new MultiplayMessage(MultiplayMessageCommand.Create, networkObject: networkObject).ToJson();
             FireOnMessageReceived(otherClientId, messageJson);
         }
@@ -101,7 +101,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         public void FireCreateExistedObjectFromOthers(GameObject objectPrefab)
         {
             var gameObjectKey = GetNetworkGameObjectKey(objectPrefab);
-            var networkObject = new NetworkObject(gameObjectKey, default, default);
+            var networkObject = new NetworkObject(gameObjectKey, default, Quaternion.identity);
             var networkObjects = new NetworkObject[] { networkObject };
             var message = new MultiplayMessage(MultiplayMessageCommand.CreateExistedObject, networkObjects: networkObjects).ToJson();
             FireOnMessageReceived(otherClientId, message);
