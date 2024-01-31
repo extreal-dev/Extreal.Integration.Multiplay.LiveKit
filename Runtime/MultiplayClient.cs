@@ -26,8 +26,8 @@ namespace Extreal.Integration.Multiplay.Messaging
         /// <para>Key: Client ID.</para>
         /// <para>Value: Network client.</para>
         /// </summary>
-        public IReadOnlyDictionary<string, NetworkClient> JoinedClients => joinedClients;
-        private readonly Dictionary<string, NetworkClient> joinedClients = new Dictionary<string, NetworkClient>();
+        public IReadOnlyDictionary<string, NetworkClient> JoinedClients => JoinedClientsProtected;
+        protected Dictionary<string, NetworkClient> JoinedClientsProtected { get; } = new Dictionary<string, NetworkClient>();
 
         /// <summary>
         /// <para>Invokes immediately after this client joins a group.</para>
@@ -80,14 +80,14 @@ namespace Extreal.Integration.Multiplay.Messaging
         /// <para>Invokes immediately after the message is received.</para>
         /// Arg: ID of the client sending the message and the message.
         /// </summary>
-        public IObservable<(string from, string message)> OnMessageReceived => onMessageReceived;
+        public IObservable<(string from, string message)> OnMessageReceived => OnMessageReceivedProtected;
         [SuppressMessage("Usage", "CC0033")]
-        private readonly Subject<(string, string)> onMessageReceived = new Subject<(string, string)>();
+        protected Subject<(string, string)> OnMessageReceivedProtected { get; } = new Subject<(string, string)>();
 
         private readonly Dictionary<Guid, NetworkObject> localNetworkObjects = new Dictionary<Guid, NetworkObject>();
         protected Dictionary<Guid, NetworkObject> RemoteNetworkObjects { get; } = new Dictionary<Guid, NetworkObject>();
-        protected Dictionary<Guid, GameObject> NetworkGameObjects { get; } = new Dictionary<Guid, GameObject>();
-        protected Dictionary<string, GameObject> NetworkObjectPrefabs { get; } = new Dictionary<string, GameObject>();
+        private readonly Dictionary<Guid, GameObject> networkGameObjects = new Dictionary<Guid, GameObject>();
+        private readonly Dictionary<string, GameObject> networkObjectPrefabs = new Dictionary<string, GameObject>();
 
         protected QueuingMessagingClient MessagingClient { get; }
 
@@ -113,10 +113,10 @@ namespace Extreal.Integration.Multiplay.Messaging
             }
 
             onObjectSpawned.AddTo(disposables);
-            onMessageReceived.AddTo(disposables);
+            OnMessageReceivedProtected.AddTo(disposables);
             MessagingClient = messagingClient.AddTo(disposables);
 
-            NetworkObjectPrefabs = networkObjectsProvider.Provide();
+            networkObjectPrefabs = networkObjectsProvider.Provide();
 
             UpdateAsync().Forget();
 
@@ -124,7 +124,7 @@ namespace Extreal.Integration.Multiplay.Messaging
                 .Subscribe(clientId =>
                 {
                     LocalClient = new NetworkClient(clientId);
-                    joinedClients[clientId] = LocalClient;
+                    JoinedClientsProtected[clientId] = LocalClient;
                 })
                 .AddTo(disposables);
 
@@ -136,9 +136,9 @@ namespace Extreal.Integration.Multiplay.Messaging
             MessagingClient.OnClientJoined
                 .Subscribe(joinedClientId =>
                 {
-                    if (!joinedClients.ContainsKey(joinedClientId))
+                    if (!JoinedClientsProtected.ContainsKey(joinedClientId))
                     {
-                        joinedClients[joinedClientId] = new NetworkClient(joinedClientId);
+                        JoinedClientsProtected[joinedClientId] = new NetworkClient(joinedClientId);
                     }
 
                     var networkObjects = localNetworkObjects.Values.ToArray();
@@ -150,16 +150,16 @@ namespace Extreal.Integration.Multiplay.Messaging
             MessagingClient.OnClientLeaving
                 .Subscribe(leavingClientId =>
                 {
-                    if (joinedClients.TryGetValue(leavingClientId, out var networkClient))
+                    if (JoinedClientsProtected.TryGetValue(leavingClientId, out var networkClient))
                     {
                         foreach (var networkObject in networkClient.NetworkObjects)
                         {
-                            var objectGuid = NetworkGameObjects.First(pair => pair.Value == networkObject).Key;
-                            NetworkGameObjects.Remove(objectGuid);
+                            var objectGuid = networkGameObjects.First(pair => pair.Value == networkObject).Key;
+                            networkGameObjects.Remove(objectGuid);
                             RemoteNetworkObjects.Remove(objectGuid);
                             UnityEngine.Object.Destroy(networkObject);
                         }
-                        joinedClients.Remove(leavingClientId);
+                        JoinedClientsProtected.Remove(leavingClientId);
                     }
                 })
                 .AddTo(disposables);
@@ -174,15 +174,15 @@ namespace Extreal.Integration.Multiplay.Messaging
 
         private void Clear()
         {
-            foreach (var networkGameObject in NetworkGameObjects.Values)
+            foreach (var networkGameObject in networkGameObjects.Values)
             {
                 UnityEngine.Object.Destroy(networkGameObject);
             }
 
             LocalClient = null;
-            joinedClients.Clear();
+            JoinedClientsProtected.Clear();
             localNetworkObjects.Clear();
-            NetworkGameObjects.Clear();
+            networkGameObjects.Clear();
         }
 
         private async UniTaskVoid UpdateAsync()
@@ -205,7 +205,7 @@ namespace Extreal.Integration.Multiplay.Messaging
             var networkObjectsToSend = new List<NetworkObject>();
             foreach ((var guid, var networkObject) in localNetworkObjects)
             {
-                var localGameObject = NetworkGameObjects[guid];
+                var localGameObject = networkGameObjects[guid];
                 if (localGameObject.TryGetComponent(out PlayerInput input))
                 {
                     networkObject.GetValuesFrom(in input);
@@ -233,9 +233,9 @@ namespace Extreal.Integration.Multiplay.Messaging
 
                 if (message.Command is MultiplayMessageCommand.Create)
                 {
-                    if (!joinedClients.ContainsKey(from))
+                    if (!JoinedClientsProtected.ContainsKey(from))
                     {
-                        joinedClients[from] = new NetworkClient(from);
+                        JoinedClientsProtected[from] = new NetworkClient(from);
                     }
                     CreateObject(from, message.NetworkObject, message.Message);
                 }
@@ -248,9 +248,9 @@ namespace Extreal.Integration.Multiplay.Messaging
                 }
                 else if (message.Command is MultiplayMessageCommand.CreateExistedObject)
                 {
-                    if (!joinedClients.ContainsKey(from))
+                    if (!JoinedClientsProtected.ContainsKey(from))
                     {
-                        joinedClients[from] = new NetworkClient(from);
+                        JoinedClientsProtected[from] = new NetworkClient(from);
                     }
                     foreach (var networkObject in message.NetworkObjects)
                     {
@@ -265,7 +265,7 @@ namespace Extreal.Integration.Multiplay.Messaging
                 }
                 else if (message.Command is MultiplayMessageCommand.Message)
                 {
-                    onMessageReceived.OnNext((from, message.Message));
+                    OnMessageReceivedProtected.OnNext((from, message.Message));
                 }
             }
 
@@ -292,12 +292,12 @@ namespace Extreal.Integration.Multiplay.Messaging
                     + $" clientId={clientId}, ObjectGuid={networkObject.ObjectGuid}, gameObjectKey={gameObjectKey}");
             }
 
-            SpawnInternal(NetworkObjectPrefabs[gameObjectKey], networkObject, joinedClients[clientId].AddNetworkObject, clientId, message: message);
+            SpawnInternal(networkObjectPrefabs[gameObjectKey], networkObject, JoinedClientsProtected[clientId].AddNetworkObject, clientId, message: message);
         }
 
         protected void UpdateNetworkObject(NetworkObject networkObject)
         {
-            if (NetworkGameObjects.TryGetValue(networkObject.ObjectGuid, out var objectToBeUpdated))
+            if (networkGameObjects.TryGetValue(networkObject.ObjectGuid, out var objectToBeUpdated))
             {
                 networkObject.SetPreTransform(objectToBeUpdated.transform);
                 RemoteNetworkObjects[networkObject.ObjectGuid] = networkObject;
@@ -311,7 +311,7 @@ namespace Extreal.Integration.Multiplay.Messaging
 
         protected void UpdateObjectTransform(NetworkObject networkObject)
         {
-            if (NetworkGameObjects.TryGetValue(networkObject.ObjectGuid, out var objectToBeUpdated))
+            if (networkGameObjects.TryGetValue(networkObject.ObjectGuid, out var objectToBeUpdated))
             {
                 networkObject.SetTransformTo(objectToBeUpdated.transform);
             }
@@ -362,11 +362,11 @@ namespace Extreal.Integration.Multiplay.Messaging
                 throw new ArgumentNullException(nameof(objectPrefab));
             }
 
-            if (!NetworkObjectPrefabs.ContainsValue(objectPrefab))
+            if (!networkObjectPrefabs.ContainsValue(objectPrefab))
             {
                 throw new ArgumentOutOfRangeException(nameof(objectPrefab), "Specify any of the objects that INetworkObjectsProvider provides");
             }
-            var gameObjectKey = NetworkObjectPrefabs.First(x => x.Value == objectPrefab).Key;
+            var gameObjectKey = networkObjectPrefabs.First(x => x.Value == objectPrefab).Key;
 
             if (rotation.x == 0f && rotation.y == 0f && rotation.z == 0f && rotation.w == 0f)
             {
@@ -388,7 +388,7 @@ namespace Extreal.Integration.Multiplay.Messaging
         {
             var spawnedObject = UnityEngine.Object.Instantiate(prefab, networkObject.Position, networkObject.Rotation, parent);
             setToNetworkClient.Invoke(spawnedObject);
-            NetworkGameObjects.Add(networkObject.ObjectGuid, spawnedObject);
+            networkGameObjects.Add(networkObject.ObjectGuid, spawnedObject);
             if (clientId == LocalClient?.ClientId)
             {
                 localNetworkObjects.Add(networkObject.ObjectGuid, networkObject);
