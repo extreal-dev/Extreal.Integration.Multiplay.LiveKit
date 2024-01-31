@@ -1,67 +1,95 @@
 using UnityEngine;
 using System;
-using System.Diagnostics.CodeAnalysis;
+using Newtonsoft.Json;
 
 namespace Extreal.Integration.Multiplay.Messaging
 {
     [Serializable]
     public class NetworkObject : ISerializationCallbackReceiver
     {
-        public Guid ObjectGuid { get; private set; }
-        [SerializeField] private string objectId;
+        [JsonIgnore] public Guid ObjectGuid { get; private set; }
+        public string ObjectId { get; set; }
 
-        public string GameObjectKey => gameObjectKey;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private string gameObjectKey;
+        public string GameObjectKey { get; }
 
-        public Vector3 Position => position;
-        [SerializeField] private Vector3 position;
+        public Vector3 Position { get; set; }
         private Vector3 prePosition;
 
-        public Quaternion Rotation => rotation;
-        [SerializeField] private Quaternion rotation;
+        public Quaternion Rotation { get; set; }
         private Quaternion preRotation;
 
         private PlayerInputValues values;
-        [SerializeField] private string jsonOfValues;
+        public string JsonOfValues { get; set; }
+
+        private const float InterpolationPeriod = 0.3f;
+        private float elapsedTime;
 
         public NetworkObject(string gameObjectKey, Vector3 position, Quaternion rotation)
         {
-            this.gameObjectKey = gameObjectKey;
-            this.position = position;
-            this.rotation = rotation;
+            GameObjectKey = gameObjectKey;
+            Position = position;
+            Rotation = rotation;
 
             ObjectGuid = Guid.NewGuid();
         }
 
         public void OnBeforeSerialize()
         {
-            objectId = ObjectGuid.ToString();
+            ObjectId = ObjectGuid.ToString();
 
             if (values != null)
             {
-                jsonOfValues = JsonUtility.ToJson(values);
+                JsonOfValues = JsonConvert.SerializeObject(values, values.GetType(), new JsonSerializerSettings
+                {
+                    DefaultValueHandling = DefaultValueHandling.Ignore,
+                    NullValueHandling = NullValueHandling.Ignore,
+                    Converters = { new Vector2Converter(), new Vector3Converter(), new QuaternionConverter() },
+                });
             }
         }
 
         public void OnAfterDeserialize()
-            => ObjectGuid = new Guid(objectId);
+            => ObjectGuid = new Guid(ObjectId);
 
         public bool CheckWhetherToSendData()
-            => position != prePosition || rotation != preRotation || (values != null && values.CheckWhetherToSendData());
+        {
+            elapsedTime += Time.deltaTime;
+            var willSendData = elapsedTime > InterpolationPeriod || (values != null && values.CheckWhetherToSendData());
+            if (willSendData)
+            {
+                elapsedTime = 0f;
+            }
+            return willSendData;
+        }
 
         public void GetTransformFrom(Transform transform)
         {
-            prePosition = position;
-            position = transform.position;
+            Position = transform.position;
+            Rotation = transform.rotation;
+        }
 
-            preRotation = rotation;
-            rotation = transform.rotation;
+        public void SetPreTransform(Transform transform)
+        {
+            prePosition = transform.position;
+            preRotation = transform.rotation;
+        }
+
+        public void SetTransformTo(Transform transform)
+        {
+            elapsedTime += Time.deltaTime;
+            var ratio = elapsedTime / InterpolationPeriod;
+            transform.position = Vector3.LerpUnclamped(prePosition, Position, ratio);
+            transform.rotation = Quaternion.LerpUnclamped(preRotation, Rotation, ratio);
         }
 
         public void ApplyValuesTo(in PlayerInput input)
         {
             var typeOfValues = input.Values.GetType();
-            values = JsonUtility.FromJson(jsonOfValues, typeOfValues) as PlayerInputValues;
+            var options = new JsonSerializerSettings
+            {
+                Converters = { new Vector2Converter(), new Vector3Converter(), new QuaternionConverter() },
+            };
+            values = JsonConvert.DeserializeObject(JsonOfValues, typeOfValues, options) as PlayerInputValues;
             input.ApplyValues(values);
         }
 

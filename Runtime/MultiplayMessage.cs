@@ -1,6 +1,4 @@
-using System;
-using System.Diagnostics.CodeAnalysis;
-using UnityEngine;
+using Newtonsoft.Json;
 
 namespace Extreal.Integration.Multiplay.Messaging
 {
@@ -13,20 +11,12 @@ namespace Extreal.Integration.Multiplay.Messaging
         Message,
     };
 
-    [Serializable]
     public class MultiplayMessage
     {
-        public MultiplayMessageCommand Command => command;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private MultiplayMessageCommand command;
-
-        public NetworkObject NetworkObjectInfo => networkObjectInfo;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObject networkObjectInfo;
-
-        public NetworkObject[] NetworkObjectInfos => networkObjectInfos;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private NetworkObject[] networkObjectInfos;
-
-        public string Message => message;
-        [SerializeField, SuppressMessage("Usage", "CC0052")] private string message;
+        public MultiplayMessageCommand Command { get; }
+        public NetworkObject NetworkObjectInfo { get; }
+        public NetworkObject[] NetworkObjectInfos { get; }
+        public string Message { get; }
 
         public MultiplayMessage
         (
@@ -36,14 +26,53 @@ namespace Extreal.Integration.Multiplay.Messaging
             string message = default
         )
         {
-            this.command = command;
-            this.networkObjectInfo = networkObjectInfo;
-            this.networkObjectInfos = networkObjectInfos;
-            this.message = message;
+            Command = command;
+            NetworkObjectInfo = networkObjectInfo;
+            NetworkObjectInfos = networkObjectInfos;
+            Message = message;
         }
 
-        public string ToJson() => JsonUtility.ToJson(this);
+        public string ToJson()
+        {
+            if (NetworkObjectInfo != default)
+            {
+                NetworkObjectInfo.OnBeforeSerialize();
+            }
+            if (NetworkObjectInfos != default)
+            {
+                foreach (var networkObjectInfo in NetworkObjectInfos)
+                {
+                    networkObjectInfo.OnBeforeSerialize();
+                }
+            }
 
-        public static MultiplayMessage FromJson(string messageJson) => JsonUtility.FromJson<MultiplayMessage>(messageJson);
+            return JsonConvert.SerializeObject(this, new JsonSerializerSettings
+            {
+                DefaultValueHandling = DefaultValueHandling.Ignore,
+                NullValueHandling = NullValueHandling.Ignore,
+                Converters = { new Vector2Converter(), new Vector3Converter(), new QuaternionConverter() },
+            });
+        }
+
+        public static MultiplayMessage FromJson(string json)
+        {
+            var multiplayMessage = JsonConvert.DeserializeObject<MultiplayMessage>(json, new JsonSerializerSettings
+            {
+                Converters = { new Vector2Converter(), new Vector3Converter(), new QuaternionConverter() },
+            });
+            if (multiplayMessage.NetworkObjectInfo != default)
+            {
+                multiplayMessage.NetworkObjectInfo.OnAfterDeserialize();
+            }
+            if (multiplayMessage.NetworkObjectInfos != default)
+            {
+                foreach (var networkObjectInfo in multiplayMessage.NetworkObjectInfos)
+                {
+                    networkObjectInfo.OnAfterDeserialize();
+                }
+            }
+
+            return multiplayMessage;
+        }
     }
 }

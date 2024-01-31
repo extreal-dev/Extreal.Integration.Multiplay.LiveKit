@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 namespace Extreal.Integration.Multiplay.Messaging
@@ -6,21 +5,19 @@ namespace Extreal.Integration.Multiplay.Messaging
     /// <summary>
     /// Class that holds player input values.
     /// </summary>
-    [Serializable]
     public class PlayerInputValues
     {
         /// <summary>
         /// Move direction to be input.
         /// </summary>
-        public Vector2 Move => move;
-        [SerializeField] private Vector2 move;
+        public Vector2 Move { get; set; }
 
         /// <summary>
         /// Sets move value.
         /// </summary>
         /// <param name="move">Move direction to be set.</param>
         public virtual void SetMove(Vector2 move)
-            => this.move = move;
+            => Move = move;
 
         /// <summary>
         /// Checks whether to send data to all other clients.
