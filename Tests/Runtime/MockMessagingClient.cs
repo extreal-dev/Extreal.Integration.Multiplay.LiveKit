@@ -13,7 +13,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         private readonly string localClientId = Guid.NewGuid().ToString();
         private readonly string otherClientId = Guid.NewGuid().ToString();
         private GameObject objectPrefab;
-        private NetworkObject networkObjectInfo;
+        private NetworkObject networkObject;
         private NetworkObjectsProvider networkObjectsProvider;
         private Dictionary<string, GameObject> networkGameObjectDic;
 
@@ -77,8 +77,8 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         {
             this.objectPrefab = objectPrefab;
             var gameObjectKey = GetNetworkGameObjectKey(this.objectPrefab);
-            networkObjectInfo = new NetworkObject(gameObjectKey, default, default);
-            var messageJson = new MultiplayMessage(MultiplayMessageCommand.Create, networkObjectInfo: networkObjectInfo).ToJson();
+            networkObject = new NetworkObject(gameObjectKey, default, default);
+            var messageJson = new MultiplayMessage(MultiplayMessageCommand.Create, networkObject: networkObject).ToJson();
             FireOnMessageReceived(otherClientId, messageJson);
         }
 
@@ -86,24 +86,24 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         {
             var go = new GameObject();
             go.transform.position = Vector3.forward;
-            networkObjectInfo.GetTransformFrom(go.transform);
+            networkObject.GetTransformFrom(go.transform);
             UnityEngine.Object.Destroy(go);
 
             if (objectPrefab.TryGetComponent(out PlayerInput input))
             {
-                networkObjectInfo.GetValuesFrom(in input);
+                networkObject.GetValuesFrom(in input);
             }
 
-            var message = new MultiplayMessage(MultiplayMessageCommand.Update, networkObjectInfos: new NetworkObject[] { networkObjectInfo }).ToJson();
+            var message = new MultiplayMessage(MultiplayMessageCommand.Update, networkObjects: new NetworkObject[] { networkObject }).ToJson();
             FireOnMessageReceived(otherClientId, message);
         }
 
         public void FireCreateExistedObjectFromOthers(GameObject objectPrefab)
         {
             var gameObjectKey = GetNetworkGameObjectKey(objectPrefab);
-            var networkObjectInfo = new NetworkObject(gameObjectKey, default, default);
-            var networkObjectInfos = new NetworkObject[] { networkObjectInfo };
-            var message = new MultiplayMessage(MultiplayMessageCommand.CreateExistedObject, networkObjectInfos: networkObjectInfos).ToJson();
+            var networkObject = new NetworkObject(gameObjectKey, default, default);
+            var networkObjects = new NetworkObject[] { networkObject };
+            var message = new MultiplayMessage(MultiplayMessageCommand.CreateExistedObject, networkObjects: networkObjects).ToJson();
             FireOnMessageReceived(otherClientId, message);
         }
 

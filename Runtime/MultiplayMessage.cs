@@ -14,35 +14,35 @@ namespace Extreal.Integration.Multiplay.Messaging
     public class MultiplayMessage
     {
         public MultiplayMessageCommand Command { get; }
-        public NetworkObject NetworkObjectInfo { get; }
-        public NetworkObject[] NetworkObjectInfos { get; }
+        public NetworkObject NetworkObject { get; }
+        public NetworkObject[] NetworkObjects { get; }
         public string Message { get; }
 
         public MultiplayMessage
         (
             MultiplayMessageCommand command,
-            NetworkObject networkObjectInfo = default,
-            NetworkObject[] networkObjectInfos = default,
+            NetworkObject networkObject = default,
+            NetworkObject[] networkObjects = default,
             string message = default
         )
         {
             Command = command;
-            NetworkObjectInfo = networkObjectInfo;
-            NetworkObjectInfos = networkObjectInfos;
+            NetworkObject = networkObject;
+            NetworkObjects = networkObjects;
             Message = message;
         }
 
         public string ToJson()
         {
-            if (NetworkObjectInfo != default)
+            if (NetworkObject != default)
             {
-                NetworkObjectInfo.OnBeforeSerialize();
+                NetworkObject.OnBeforeSerialize();
             }
-            if (NetworkObjectInfos != default)
+            if (NetworkObjects != default)
             {
-                foreach (var networkObjectInfo in NetworkObjectInfos)
+                foreach (var networkObject in NetworkObjects)
                 {
-                    networkObjectInfo.OnBeforeSerialize();
+                    networkObject.OnBeforeSerialize();
                 }
             }
 
@@ -60,15 +60,15 @@ namespace Extreal.Integration.Multiplay.Messaging
             {
                 Converters = { new Vector2Converter(), new Vector3Converter(), new QuaternionConverter() },
             });
-            if (multiplayMessage.NetworkObjectInfo != default)
+            if (multiplayMessage.NetworkObject != default)
             {
-                multiplayMessage.NetworkObjectInfo.OnAfterDeserialize();
+                multiplayMessage.NetworkObject.OnAfterDeserialize();
             }
-            if (multiplayMessage.NetworkObjectInfos != default)
+            if (multiplayMessage.NetworkObjects != default)
             {
-                foreach (var networkObjectInfo in multiplayMessage.NetworkObjectInfos)
+                foreach (var networkObject in multiplayMessage.NetworkObjects)
                 {
-                    networkObjectInfo.OnAfterDeserialize();
+                    networkObject.OnAfterDeserialize();
                 }
             }
 
