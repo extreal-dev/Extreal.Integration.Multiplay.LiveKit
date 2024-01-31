@@ -1,5 +1,4 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 
 namespace Extreal.Integration.Multiplay.Messaging
 {
@@ -14,7 +13,7 @@ namespace Extreal.Integration.Multiplay.Messaging
 
     public class MultiplayMessage
     {
-        [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public MultiplayMessageCommand Command { get; }
+        public MultiplayMessageCommand Command { get; }
         public NetworkObjectInfo NetworkObjectInfo { get; }
         public NetworkObjectInfo[] NetworkObjectInfos { get; }
         public string Message { get; }
@@ -47,16 +46,17 @@ namespace Extreal.Integration.Multiplay.Messaging
                 }
             }
 
-            return JsonSerializer.Serialize(this, new JsonSerializerOptions
+            return JsonConvert.SerializeObject(this, new JsonSerializerSettings
             {
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
+                DefaultValueHandling = DefaultValueHandling.Ignore,
+                NullValueHandling = NullValueHandling.Ignore,
                 Converters = { new Vector2Converter(), new Vector3Converter(), new QuaternionConverter() },
             });
         }
 
         public static MultiplayMessage FromJson(string json)
         {
-            var multiplayMessage = JsonSerializer.Deserialize<MultiplayMessage>(json, new JsonSerializerOptions
+            var multiplayMessage = JsonConvert.DeserializeObject<MultiplayMessage>(json, new JsonSerializerSettings
             {
                 Converters = { new Vector2Converter(), new Vector3Converter(), new QuaternionConverter() },
             });
@@ -71,7 +71,6 @@ namespace Extreal.Integration.Multiplay.Messaging
                     networkObjectInfo.OnAfterDeserialize();
                 }
             }
-
 
             return multiplayMessage;
         }

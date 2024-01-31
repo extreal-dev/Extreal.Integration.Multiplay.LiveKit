@@ -1,7 +1,6 @@
 using UnityEngine;
 using System;
-using System.Text.Json.Serialization;
-using System.Text.Json;
+using Newtonsoft.Json;
 
 namespace Extreal.Integration.Multiplay.Messaging
 {
@@ -39,9 +38,10 @@ namespace Extreal.Integration.Multiplay.Messaging
 
             if (values != null)
             {
-                JsonOfValues = JsonSerializer.Serialize(values, values.GetType(), new JsonSerializerOptions
+                JsonOfValues = JsonConvert.SerializeObject(values, values.GetType(), new JsonSerializerSettings
                 {
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
+                    DefaultValueHandling = DefaultValueHandling.Ignore,
+                    NullValueHandling = NullValueHandling.Ignore,
                     Converters = { new Vector2Converter(), new Vector3Converter(), new QuaternionConverter() },
                 });
             }
@@ -84,11 +84,11 @@ namespace Extreal.Integration.Multiplay.Messaging
         public void ApplyValuesTo(in PlayerInput input)
         {
             var typeOfValues = input.Values.GetType();
-            var options = new JsonSerializerOptions
+            var options = new JsonSerializerSettings
             {
                 Converters = { new Vector2Converter(), new Vector3Converter(), new QuaternionConverter() },
             };
-            values = JsonSerializer.Deserialize(JsonOfValues, typeOfValues, options) as PlayerInputValues;
+            values = JsonConvert.DeserializeObject(JsonOfValues, typeOfValues, options) as PlayerInputValues;
             input.ApplyValues(values);
         }
 
