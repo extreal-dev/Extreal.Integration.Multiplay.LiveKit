@@ -94,6 +94,7 @@ namespace Extreal.Integration.Multiplay.Messaging
         private bool isJoined;
 
         private bool isDisposed;
+        [SuppressMessage("Usage", "CC0033")]
         private readonly CompositeDisposable disposables = new CompositeDisposable();
         private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(MultiplayClient));
 

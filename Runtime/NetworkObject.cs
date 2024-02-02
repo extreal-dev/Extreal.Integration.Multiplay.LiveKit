@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 using Newtonsoft.Json;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Extreal.Integration.Multiplay.Messaging
 {
@@ -8,17 +9,21 @@ namespace Extreal.Integration.Multiplay.Messaging
     public class NetworkObject : ISerializationCallbackReceiver
     {
         [JsonIgnore] public Guid ObjectGuid { get; private set; }
+        [SuppressMessage("Usage", "CC0047")]
         public string ObjectId { get; set; }
 
         public string GameObjectKey { get; }
 
+        [SuppressMessage("Usage", "CC0047")]
         public Vector3 Position { get; set; }
         private Vector3 prePosition;
 
+        [SuppressMessage("Usage", "CC0047")]
         public Quaternion Rotation { get; set; }
         private Quaternion preRotation;
 
         private PlayerInputValues values;
+        [SuppressMessage("Usage", "CC0047")]
         public string JsonOfValues { get; set; }
 
         private const float InterpolationPeriod = 0.3f;

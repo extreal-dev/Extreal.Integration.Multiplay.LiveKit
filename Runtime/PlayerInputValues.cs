@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 
 namespace Extreal.Integration.Multiplay.Messaging
@@ -10,6 +11,7 @@ namespace Extreal.Integration.Multiplay.Messaging
         /// <summary>
         /// Move direction to be input.
         /// </summary>
+        [SuppressMessage("Usage", "CC0047")]
         public Vector2 Move { get; set; }
 
         /// <summary>
