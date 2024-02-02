@@ -33,14 +33,13 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
                 return;
             }
 
-            SetJoiningGroupStatus(true);
             FireOnJoined(localClientId);
         }
 
 #pragma warning disable CS1998
-        protected override async UniTask DoLeaveAsync()
+        protected override UniTask DoLeaveAsync()
 #pragma warning restore CS1998
-            => SetJoiningGroupStatus(false);
+            => UniTask.CompletedTask;
 
 #pragma warning disable CS1998
         protected override async UniTask DoSendMessageAsync(string message, string to)

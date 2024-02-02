@@ -91,6 +91,8 @@ namespace Extreal.Integration.Multiplay.Messaging
 
         protected QueuingMessagingClient MessagingClient { get; }
 
+        private bool isJoined;
+
         private bool isDisposed;
         private readonly CompositeDisposable disposables = new CompositeDisposable();
         private static readonly ELogger Logger = LoggingManager.GetLogger(nameof(MultiplayClient));
@@ -125,6 +127,7 @@ namespace Extreal.Integration.Multiplay.Messaging
                 {
                     LocalClient = new NetworkClient(clientId);
                     JoinedClientsProtected[clientId] = LocalClient;
+                    isJoined = true;
                 })
                 .AddTo(disposables);
 
@@ -183,6 +186,7 @@ namespace Extreal.Integration.Multiplay.Messaging
             JoinedClientsProtected.Clear();
             localNetworkObjects.Clear();
             networkGameObjects.Clear();
+            isJoined = false;
         }
 
         private async UniTaskVoid UpdateAsync()
@@ -190,7 +194,7 @@ namespace Extreal.Integration.Multiplay.Messaging
             while (!isDisposed)
             {
                 await UniTask.Yield();
-                if (!MessagingClient.IsJoinedGroup)
+                if (!isJoined)
                 {
                     continue;
                 }
