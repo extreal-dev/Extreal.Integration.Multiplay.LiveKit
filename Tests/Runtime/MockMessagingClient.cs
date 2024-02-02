@@ -110,7 +110,6 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         {
             var group = new GroupResponse
             {
-                Id = "TestId",
                 Name = "TestName"
             };
 

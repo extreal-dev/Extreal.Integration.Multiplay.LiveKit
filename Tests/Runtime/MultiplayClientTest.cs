@@ -102,7 +102,6 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             var groups = await multiplayClient.ListGroupsAsync();
             Assert.That(groups, Is.Not.Null);
             Assert.That(groups.Count, Is.EqualTo(1));
-            Assert.That(groups[0].Id, Is.EqualTo("TestId"));
             Assert.That(groups[0].Name, Is.EqualTo("TestName"));
         });
 
