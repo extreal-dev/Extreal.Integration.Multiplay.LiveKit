@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Extreal.Integration.Multiplay.Messaging
 {
     [Serializable]
-    public class NetworkObject : ISerializationCallbackReceiver
+    public class NetworkObject
     {
         [JsonIgnore] public Guid ObjectGuid { get; private set; }
         [SuppressMessage("Usage", "CC0047")]
