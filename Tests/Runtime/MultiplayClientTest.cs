@@ -27,6 +27,8 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         [UnitySetUp]
         public IEnumerator InitializeAsync() => UniTask.ToCoroutine(async () =>
         {
+            Application.targetFrameRate = 60;
+
             LoggingManager.Initialize(LogLevel.Debug);
 
             await SceneManager.LoadSceneAsync("Main");
