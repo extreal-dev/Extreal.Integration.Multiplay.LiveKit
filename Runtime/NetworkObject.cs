@@ -83,8 +83,7 @@ namespace Extreal.Integration.Multiplay.Messaging
         {
             elapsedTime += Time.deltaTime;
             var ratio = elapsedTime / InterpolationPeriod;
-            transform.position = Vector3.LerpUnclamped(prePosition, Position, ratio);
-            transform.rotation = Quaternion.LerpUnclamped(preRotation, Rotation, ratio);
+            transform.SetPositionAndRotation(Vector3.LerpUnclamped(prePosition, Position, ratio), Quaternion.LerpUnclamped(preRotation, Rotation, ratio));
         }
 
         public void ApplyValuesTo(in PlayerInput input)
