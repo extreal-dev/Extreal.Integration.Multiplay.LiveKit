@@ -1,0 +1,20 @@
+{
+    "name": "Extreal.Integration.Multiplay.Messaging",
+    "rootNamespace": "Extreal.Integration.Multiplay.Messaging",
+    "references": [
+        "Extreal.Core.Logging",
+        "Extreal.Core.Common",
+        "Extreal.Integration.Messaging",
+        "UniTask",
+        "UniRx"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
