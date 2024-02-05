@@ -211,7 +211,7 @@ namespace Extreal.Integration.Multiplay.Messaging
             }
         }
 
-        protected void SynchronizeToOthers()
+        protected virtual void SynchronizeToOthers()
         {
             var networkObjectsToSend = new List<NetworkObject>();
             foreach ((var guid, var networkObject) in LocalNetworkObjects)
