@@ -40,7 +40,7 @@ namespace Extreal.Integration.Multiplay.Messaging
         /// <para>Invokes just before this client leaves a group.</para>
         /// Arg: reason why this client leaves.
         /// </summary>
-        public IObservable<string> OnLeaving => MessagingClient.OnLeaving;
+        public IObservable<Unit> OnLeaving => MessagingClient.OnLeaving;
 
         /// <summary>
         /// <para>Invokes immediately after this client unexpectedly leaves a group.</para>
@@ -139,7 +139,7 @@ namespace Extreal.Integration.Multiplay.Messaging
                 .AddTo(disposables);
 
             MessagingClient.OnLeaving
-                .Merge(MessagingClient.OnUnexpectedLeft)
+                .Merge(MessagingClient.OnUnexpectedLeft.Select(_ => Unit.Default))
                 .Subscribe(_ => Clear())
                 .AddTo(disposables);
 

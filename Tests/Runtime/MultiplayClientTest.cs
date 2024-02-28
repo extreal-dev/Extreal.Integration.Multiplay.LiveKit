@@ -44,7 +44,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
                 .AddTo(disposables);
 
             multiplayClient.OnLeaving
-                .Subscribe(eventHandler.SetLeavingReason)
+                .Subscribe(_ => eventHandler.SetLeavingReason(true))
                 .AddTo(disposables);
 
             multiplayClient.OnUnexpectedLeft
@@ -155,9 +155,9 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
         [UnityTest]
         public IEnumerator LeaveSuccess() => UniTask.ToCoroutine(async () =>
         {
-            Assert.That(eventHandler.LeavingReason, Is.Null);
+            Assert.That(eventHandler.IsLeaving, Is.False);
             await multiplayClient.LeaveAsync();
-            Assert.That(eventHandler.LeavingReason, Is.EqualTo("leave request"));
+            Assert.That(eventHandler.IsLeaving, Is.True);
         });
 
         [Test]
@@ -435,9 +435,9 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             public void SetClientId(string clientId)
                 => ClientId = clientId;
 
-            public string LeavingReason { get; private set; }
-            public void SetLeavingReason(string reason)
-                => LeavingReason = reason;
+            public bool IsLeaving { get; private set; }
+            public void SetLeavingReason(bool isLeaving)
+                => IsLeaving = isLeaving;
 
             public string UnexpectedLeftReason { get; private set; }
             public void SetUnexpectedLeftReason(string reason)
