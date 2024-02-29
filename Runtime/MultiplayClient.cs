@@ -192,6 +192,7 @@ namespace Extreal.Integration.Multiplay.Messaging
             LocalClient = null;
             joinedClients.Clear();
             LocalNetworkObjects.Clear();
+            RemoteNetworkObjects.Clear();
             NetworkGameObjects.Clear();
             isJoined = false;
         }
