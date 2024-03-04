@@ -26,6 +26,6 @@ namespace Extreal.Integration.Multiplay.Messaging
         /// </summary>
         /// <returns>True if sending data, false otherwise.</returns>
         public virtual bool CheckWhetherToSendData()
-            => true;
+            => false;
     }
 }
