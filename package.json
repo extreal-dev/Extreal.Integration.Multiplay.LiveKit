@@ -1,6 +1,6 @@
 {
   "name": "jp.co.tis.extreal.integration.multiplay.messaging",
-  "version": "1.0.0-next.6",
+  "version": "1.0.0",
   "displayName": "Extreal.Integration.Multiplay.Messaging",
   "unity": "2022.3",
   "author": {
@@ -11,7 +11,7 @@
     "com.neuecc.unirx": "7.1.0",
     "com.unity.nuget.newtonsoft-json": "3.2.1",
     "jp.co.tis.extreal.core.logging": "1.2.0",
-    "jp.co.tis.extreal.core.common": "1.2.0-next.1",
-    "jp.co.tis.extreal.integration.messaging": "1.0.0-next.4"
+    "jp.co.tis.extreal.core.common": "1.2.0",
+    "jp.co.tis.extreal.integration.messaging": "1.0.0"
   }
 }
