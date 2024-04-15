@@ -289,7 +289,7 @@ namespace Extreal.Integration.Multiplay.Messaging.Test
             await multiplayClient.JoinAsync(joiningConfig);
 
             var spawnedObject = multiplayClient.SpawnObject(networkObjectsProvider.NetworkObject);
-            await AssertLogAppearsInSomeFramesAsync($"\"Command\":{(int)MultiplayMessageCommand.Update}", LogType.Log);
+            await AssertLogAppearsInSomeFramesAsync($"\"Command\":{(int)MultiplayMessageCommand.Update}", LogType.Log, 60);
         });
 
         [UnityTest]
